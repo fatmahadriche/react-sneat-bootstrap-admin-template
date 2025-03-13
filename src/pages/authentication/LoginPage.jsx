@@ -1,93 +1,158 @@
 import { useState } from "react";
-import { Link } from "react-router-dom"
-import './page-auth.css'
+import { Link } from "react-router-dom";
+import './page-auth.css';
 import { AuthWrapper } from "./AuthWrapper";
-
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/authContext";
+import { FaUser, FaLock, FaSignInAlt } from "react-icons/fa";
 export const LoginPage = () => {
-    const [formData, setFormData] = useState({
-        password: '',
-        email: '',
-        rememberMe: false,
-    });
+    const [matricule, setMatricule] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const { login } = useAuth();
+    const navigate = useNavigate();
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
+    const validateMatriculeInput = (event) => {
+        if (
+            event.key === "Backspace" ||
+            event.key === "Delete" ||
+            event.key === "ArrowLeft" ||
+            event.key === "ArrowRight" ||
+            event.key === "Tab"
+        ) {
+            return;
+        }
 
-        setFormData((prevData) => ({
-            ...prevData,
-            [name]: type === 'checkbox' ? checked : value,
-        }));
+        if (!/[0-9]/.test(event.key)) {
+            event.preventDefault();
+        }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Handle form submission logic here
-        console.log('Form submitted:', formData);
+        setLoading(true);
+        setError("");
+
+        // Validation côté client
+        if (!matricule || !password) {
+            setError("Veuillez remplir tous les champs.");
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const res = await axios.post("http://localhost:5000/auth/login", {
+                matricule,
+                password,
+            });
+
+            const validRoles = ['admin']; // Seul l'admin est autorisé pour le moment
+            if (!validRoles.includes(res.data.role.toLowerCase())) {
+                throw new Error("Rôle utilisateur non reconnu");
+            }
+
+            // Appelez la fonction login avec le token et le rôle
+            login(res.data.token, res.data.role);
+        } catch (err) {
+            // Gestion des erreurs sécurisées
+            if (err.response) {
+                // Toutes les erreurs côté serveur renvoient un message générique
+                setError("Identifiants invalides. Veuillez réessayer.");
+            } else if (err.request) {
+                // Erreur de réseau
+                setError("Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
+            } else {
+                // Erreur inattendue
+                setError("Une erreur s'est produite. Veuillez réessayer plus tard.");
+            }
+        }
+        setLoading(false);
     };
+
     return (
         <AuthWrapper>
-            <h4 className="mb-2">Welcome to Sneat! 👋</h4>
-            <p className="mb-4">Please sign-in to your account and start the adventure</p>
+            <h4 className="mb-2">Welcome to Login! 👋</h4>
+            <p className="mb-4">Please enter your login credentials.</p>
+
+            {error && (
+                <div className="alert alert-danger" role="alert">
+                    {error}
+                </div>
+            )}
 
             <form id="formAuthentication" className="mb-3" onSubmit={handleSubmit}>
                 <div className="mb-3">
-                    <label htmlFor="email" className="form-label">Email or Username</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        id="email"
-                        value={formData.name}
-                        onChange={handleChange}
-                        name="email"
-                        placeholder="Enter your email or username"
-                        autoFocus />
+                    <label htmlFor="matricule" className="form-label">Matricule</label>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '10px' }}>
+                            <FaUser />
+                        </span>
+                        <input
+                            type="text"
+                            className="form-control"
+                            id="matricule"
+                            value={matricule}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                if (/^\d{0,5}$/.test(value)) {
+                                    setMatricule(value);
+                                }
+                            }}
+                            onKeyDown={validateMatriculeInput}
+                            placeholder="Enter your matricule"
+                            autoFocus
+                            required
+                        />
+                    </div>
                 </div>
                 <div className="mb-3 form-password-toggle">
                     <div className="d-flex justify-content-between">
                         <label className="form-label" htmlFor="password">Password</label>
-                        <Link aria-label="Go to Forgot Password Page" to="/auth/forgot-password">
-                            <small>Forgot Password?</small>
-                        </Link>
                     </div>
-                    <div className="input-group input-group-merge">
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '10px' }}>
+                            <FaLock />
+                        </span>
                         <input
                             type="password"
                             autoComplete="true"
                             id="password"
-                            value={formData.password}
-                            onChange={handleChange}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="form-control"
                             name="password"
                             placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
-                            aria-describedby="password" />
-                        <span className="input-group-text cursor-pointer"></span>
-                    </div>
-                </div>
-                <div className="mb-3">
-                    <div className="form-check">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="remember-me"
-                            name="rememberMe"
-                            checked={formData.rememberMe}
-                            onChange={handleChange}
+                            aria-describedby="password"
+                            required
                         />
-                        <label className="form-check-label" htmlFor="remember-me"> Remember Me </label>
                     </div>
                 </div>
                 <div className="mb-3">
-                    <button aria-label='Click me' className="btn btn-primary d-grid w-100" type="submit">Sign in</button>
+                    <button
+                        aria-label='Click me'
+                        className="btn btn-primary d-grid w-100"
+                        type="submit"
+                        disabled={loading}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        {loading ? (
+                            "Connexion en cours..."
+                        ) : (
+                            <>
+                                <FaSignInAlt style={{ marginRight: '8px' }} />
+                                Sign in
+                            </>
+                        )}
+                    </button>   
                 </div>
             </form>
 
             <p className="text-center">
-                <span>New on our platform? </span>
-                <Link aria-label="Go to Register Page" to='/auth/register' className="registration-link">
-                    <span>Create an account</span>
-                </Link>
-            </p>
 
+                © {new Date().getFullYear()} STEG. Tous droits réservés.
+            </p>
         </AuthWrapper>
-    )
-}
+    );
+};

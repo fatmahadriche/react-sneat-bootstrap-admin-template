@@ -1,9 +1,19 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/authContext";
+
 
 export const DashboardPage = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
     useEffect(() => {
-        dashboardAnalitics();
-    }, [])
+        if (!user) {
+            navigate('/auth/login', { replace: true });
+        } else {
+            dashboardAnalitics();
+        }
+    }, [user, navigate]);
     return (
         <>
             <div className="row">

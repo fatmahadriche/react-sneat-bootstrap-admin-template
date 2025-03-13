@@ -174,7 +174,10 @@ var Helpers = {
         event.initEvent(name, false, true)
       }
 
-      window.dispatchEvent(event)
+      // Dans helpers.js, ligne 172
+      window.addEventListener('DOMContentLoaded', () => {
+        window.dispatchEvent(new Event('resize'));
+      });
     } else {
       window.fireEvent(`on${name}`, document.createEventObject())
     }
