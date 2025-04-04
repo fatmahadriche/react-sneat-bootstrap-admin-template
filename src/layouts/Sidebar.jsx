@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
 import menuData from '../data/menuData.json';
 
@@ -7,9 +7,8 @@ const Sidebar = () => {
     return (
         <aside id="layout-menu" className="layout-menu menu-vertical menu bg-menu-theme">
             <div className="app-brand demo">
-                {/* Lien vers la page d'accueil */}
-                <Link aria-label="Navigate to STEG homepage" to="/" className="app-brand-link">
-                    {/* Nouveau logo de STEG */}
+                {/* Logo statique sans lien */}
+                <span className="app-brand-link" style={{ cursor: 'default' }}>
                     <span className="app-brand-logo demo">
                         <img
                             src="/assets/img/STEG.jpg"
@@ -18,11 +17,10 @@ const Sidebar = () => {
                             style={{ width: 'auto', height: '40px' }}
                         />
                     </span>
-                    {/* Texte "STEG" en majuscules */}
                     <span className="app-brand-text demo menu-text fw-bold ms-2" style={{ textTransform: 'uppercase' }}>
                         STEG
                     </span>
-                </Link>
+                </span>
 
                 {/* Bouton pour basculer le menu sur mobile */}
                 <a href="#" className="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
@@ -52,6 +50,7 @@ const Sidebar = () => {
     );
 };
 
+// ... (le reste du code pour MenuItem reste inchangé)
 const MenuItem = (item) => {
     const location = useLocation();
     const { logout } = useAuth();
@@ -72,22 +71,23 @@ const MenuItem = (item) => {
                     aria-label={`Navigate to ${item.text}`}
                     onClick={handleClick}
                     className="menu-link"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer" }} // Déjà correct
                 >
                     <i className={`menu-icon tf-icons ${item.icon}`}></i>
                     <div>{item.text}</div>
                 </div>
             ) : (
-                <div
+                <NavLink
+                    to={item.link || '#'}
                     className={`menu-link ${hasSubmenu ? 'menu-toggle' : ''}`}
-                    style={{ cursor: hasSubmenu ? "pointer" : "default" }}
+                    style={{ cursor: "pointer" }} // Modification ici
                 >
                     <i className={`menu-icon tf-icons ${item.icon}`}></i>
                     <div>{item.text}</div>
                     {item.available === false && (
                         <div className="badge bg-label-primary fs-tiny rounded-pill ms-auto">Pro</div>
                     )}
-                </div>
+                </NavLink>
             )}
             {hasSubmenu && (
                 <ul className="menu-sub">
@@ -96,6 +96,7 @@ const MenuItem = (item) => {
                             <NavLink
                                 to={subItem.link}
                                 className="menu-link"
+                                style={{ cursor: "pointer" }} // Ajout ici pour les sous-éléments
                             >
                                 <i className={`menu-icon tf-icons ${subItem.icon}`}></i>
                                 <div>{subItem.text}</div>
@@ -107,5 +108,4 @@ const MenuItem = (item) => {
         </li>
     );
 };
-
 export default Sidebar;

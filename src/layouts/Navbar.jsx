@@ -1,118 +1,138 @@
 import { useAuth } from '../context/authContext';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import debounce from 'lodash-es/debounce';
+import { toast } from 'react-toastify';
+import debounce from 'lodash.debounce';
 
 const Navbar = () => {
-  const { logout, user } = useAuth(); // Récupérer l'utilisateur connecté et la fonction de déconnexion
+  const { logout, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [showResults, setShowResults] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const searchRef = useRef(null); // Référence pour gérer les clics en dehors de la zone de recherche
+  const searchRef = useRef(null);
   const navigate = useNavigate();
 
-  // Gestion des clics en dehors de la zone de recherche
+  // Recherche avec debounce
+  const debouncedSearch = useCallback(
+    debounce(async (query) => {
+      if (!query || !user?.token) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        const response = await axios.get(
+          `${import.meta.env.VITE_APP_API_URL}/auth/admin/search`,
+          {
+            params: { q: query },
+            headers: { Authorization: `Bearer ${user?.token}` }
+          }
+        );
+        setSearchResults(response.data || []);
+      } catch (error) {
+        if (error.response?.status !== 404) {
+          toast.error('Erreur lors de la recherche');
+        }
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300),
+    [user?.token] // Dépendance avec optional chaining
+  );
+
+  // Gestion du changement de recherche
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowResults(false);
+    if (showSearch) {
+      debouncedSearch(searchQuery);
+    }
+    return () => debouncedSearch.cancel();
+  }, [searchQuery, debouncedSearch, showSearch]);
+
+  // Fermeture des résultats au clic externe
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSearch(false);
+        setSearchQuery('');
+        setSearchResults([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Recherche avec debounce pour limiter les appels API
-  const performSearch = debounce(async (query) => {
-    if (!query) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    try {
-      setIsSearching(true);
-      const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/auth/admin/search?q=${query}`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      setSearchResults(response.data);
-      setShowResults(true);
-    } catch (error) {
-      console.error('Erreur de recherche:', error);
-      toast.error('Erreur lors de la recherche');
-    } finally {
-      setIsSearching(false);
-    }
-  }, 300);
-
-  // Gestion du changement de la recherche
-  const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    performSearch(query);
-  };
-
-  // Gestion du clic sur un résultat
-  const handleResultClick = (userId) => {
-    navigate(`/utilisateurs/${userId}`);
-    setSearchQuery('');
-    setShowResults(false);
-  };
+  // Si l'utilisateur n'est pas chargé, ne rien afficher
+  if (!user) return null;
 
   return (
-    <nav
-      className="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
-      id="layout-navbar"
-    >
+    <nav className="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
       <div className="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
-        <a aria-label="toggle for sidebar" className="nav-item nav-link px-0 me-xl-4" href="#">
+        <a className="nav-item nav-link px-0 me-xl-4" href="#">
           <i className="bx bx-menu bx-sm"></i>
         </a>
       </div>
 
-      <div className="navbar-nav-right d-flex align-items-center" id="navbar-collapse" ref={searchRef}>
-        {/* Formulaire de recherche */}
-        <div className="position-relative">
-          <form onSubmit={(e) => e.preventDefault()}>
-            <input
-              type="text"
-              className="form-control search-input"
-              placeholder="Rechercher utilisateur..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onFocus={() => setShowResults(true)}
-            />
-            {isSearching && (
-              <div className="position-absolute top-50 end-0 translate-middle-y me-2">
-                <div className="spinner-border spinner-border-sm" role="status">
-                  <span className="visually-hidden">Chargement...</span>
-                </div>
-              </div>
-            )}
-          </form>
+      <div className="navbar-nav-right d-flex align-items-center" ref={searchRef}>
+        {/* Zone de recherche */}
+        <div className="d-flex align-items-center me-3" ref={searchRef}>
+          {/* Icône de recherche */}
+          <div className="nav-item cursor-pointer me-2" onClick={() => setShowSearch(!showSearch)}>
+            <i className={`bx bx-${showSearch ? 'x' : 'search'} fs-4`}></i>
+          </div>
 
-          {/* Affichage des résultats de recherche */}
-          {showResults && searchResults.length > 0 && (
-            <div className="search-results-dropdown card position-absolute mt-1 w-100">
-              <div className="card-body p-2">
-                {searchResults.map((user) => (
-                  <div
-                    key={user._id}
-                    className="search-item d-flex align-items-center p-2 hover-bg"
-                    role="button"
-                    onClick={() => handleResultClick(user._id)}
-                  >
-                    <div className="flex-grow-1">
-                      <div className="fw-semibold">
-                        {user.nom}
-                      </div>
-                      <small className="text-muted">Matricule: {user.matricule}</small>
+          {showSearch && (
+            <div className="position-relative">
+              <div className="input-group" style={{ width: "250px" }}>
+                <input
+                  type="text"
+                  className="form-control search-input"
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+                {isSearching && (
+                  <span className="input-group-text">
+                    <div className="spinner-border spinner-border-sm" role="status">
+                      <span className="visually-hidden">Chargement...</span>
                     </div>
-                  </div>
-                ))}
+                  </span>
+                )}
               </div>
+
+              {/* Résultats de recherche */}
+              {searchResults.length > 0 && (
+                <div className="search-results card position-absolute w-100 mt-1 shadow">
+                  <div className="card-body p-0">
+                    {searchResults.map((resultUser) => (
+                      <div
+                        key={resultUser._id}
+                        className="search-item d-flex align-items-center p-3 hover-bg"
+                        onClick={() => {
+                          navigate(`/utilisateurs/${resultUser._id}`);
+                          setShowSearch(false);
+                        }}
+                      >
+                        <div className="avatar avatar-sm me-3">
+                          <span className="avatar-initial bg-label-primary rounded-circle">
+                            {resultUser.nom?.[0] || 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="fw-semibold">
+                            {resultUser.nom} {resultUser.prenom}
+                          </div>
+                          <div className="text-muted small">Matricule: {resultUser.matricule}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -120,72 +140,27 @@ const Navbar = () => {
         {/* Menu utilisateur */}
         <ul className="navbar-nav flex-row align-items-center ms-auto">
           <li className="nav-item navbar-dropdown dropdown-user dropdown">
-            <a
-              aria-label="dropdown profile avatar"
-              className="nav-link dropdown-toggle hide-arrow"
-              href="#"
-              data-bs-toggle="dropdown"
-            >
+            <a className="nav-link dropdown-toggle hide-arrow" href="#" data-bs-toggle="dropdown">
               <div className="avatar avatar-online">
                 <img
                   src="../assets/img/avatars/1.png"
                   className="w-px-40 h-auto rounded-circle"
-                  alt="avatar-image"
-                  aria-label="Avatar Image"
+                  alt="Profil"
                 />
               </div>
             </a>
-            <ul className="dropdown-menu dropdown-menu-end">
+            <ul className="dropdown-menu dropdown-menu-end py-2">
               <li>
-                <a aria-label="go to profile" className="dropdown-item" href="#">
-                  <div className="d-flex">
-                    <div className="flex-shrink-0 me-3">
-                      <div className="avatar avatar-online">
-                        <img
-                          src="../assets/img/avatars/1.png"
-                          className="w-px-40 h-auto rounded-circle"
-                          alt="avatar-image"
-                          aria-label="Avatar Image"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex-grow-1">
-                      <span className="fw-medium d-block">John Doe</span>
-                      <small className="text-muted">Admin</small>
-                    </div>
-                  </div>
-                </a>
+                <div className="dropdown-header px-3">
+                  <h6 className="mb-0">{user?.nom || 'Utilisateur'}</h6>
+                  <small>{user?.role || 'Rôle inconnu'}</small>
+                </div>
               </li>
+              <li><hr className="dropdown-divider" /></li>
               <li>
-                <div className="dropdown-divider"></div>
-              </li>
-              <li>
-                <a aria-label="go to profile" className="dropdown-item" href="#">
-                  <i className="bx bx-user me-2"></i>
-                  <span className="align-middle">My Profile</span>
-                </a>
-              </li>
-              <li>
-                <a aria-label="go to setting" className="dropdown-item" href="#">
-                  <i className="bx bx-cog me-2"></i>
-                  <span className="align-middle">Settings</span>
-                </a>
-              </li>
-              <li>
-                <div className="dropdown-divider"></div>
-              </li>
-              <li>
-                <a
-                  aria-label="click to log out"
-                  className="dropdown-item"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    logout();
-                  }}
-                >
+                <a className="dropdown-item" href="#" onClick={logout}>
                   <i className="bx bx-power-off me-2"></i>
-                  <span className="align-middle">Log Out</span>
+                  Déconnexion
                 </a>
               </li>
             </ul>

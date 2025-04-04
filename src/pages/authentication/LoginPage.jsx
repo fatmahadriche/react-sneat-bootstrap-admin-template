@@ -16,7 +16,7 @@ export const LoginPage = () => {
 
     const validateMatriculeInput = (event) => {
         if (
-            event.key === "Backspace" ||
+            event.key === "Backspace" ||    
             event.key === "Delete" ||
             event.key === "ArrowLeft" ||
             event.key === "ArrowRight" ||
@@ -156,3 +156,4 @@ export const LoginPage = () => {
         </AuthWrapper>
     );
 };
+

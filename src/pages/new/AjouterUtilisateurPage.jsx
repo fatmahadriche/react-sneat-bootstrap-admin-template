@@ -4,6 +4,7 @@ import { useAuth } from "../../context/authContext"; // Assurez-vous que le chem
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "./AjouterUtilisateurModal.css";
 
 const AjouterUtilisateurPage = () => {
     const [userData, setUserData] = useState({
@@ -59,9 +60,8 @@ const AjouterUtilisateurPage = () => {
             console.log("Erreurs de validation", errors);
         }
     };
-    
 
-    // Confirmation de l'ajout
+
     const handleConfirm = async () => {
         setShowConfirmation(false);
         try {
@@ -70,18 +70,19 @@ const AjouterUtilisateurPage = () => {
                 userData,
                 {
                     headers: {
-                        Authorization: `Bearer ${user.token}`,
+                        Authorization: `Bearer ${user.token}`, // Enlevez la vérification inutile
+                        'Content-Type': 'application/json', // Ajoutez explicitement le Content-Type
                     },
                 }
             );
 
             toast.success("Utilisateur créé avec succès !");
             setTimeout(() => {
-                navigate("/tables"); // Rediriger vers la liste des utilisateurs
+                navigate("/utilisateurs");
             }, 2000);
         } catch (err) {
-            console.error("Erreur de création :", err.response?.data || err.message);
-            toast.error(err.response?.data?.message || "Erreur lors de la création de l'utilisateur");
+            console.error("Erreur :", err.response?.data || err);
+            toast.error(err.response?.data?.message || "Erreur lors de la création");
         }
     };
 
@@ -188,7 +189,7 @@ const AjouterUtilisateurPage = () => {
                                 <option value="admin">Admin</option>
                                 <option value="agent">Agent</option>
                                 <option value="gestionnaire">Gestionnaire</option>
-                            
+
                             </select>
                         </div>
                     </div>
@@ -202,7 +203,7 @@ const AjouterUtilisateurPage = () => {
 
             {/* Modal de confirmation */}
             {showConfirmation && (
-                <div className="modal">
+                <div className="modal-overlay">
                     <div className="modal-content">
                         <h2>Confirmer l'ajout</h2>
                         {Object.keys(userData).map(
@@ -214,7 +215,7 @@ const AjouterUtilisateurPage = () => {
                                 )
                         )}
                         <div className="modal-buttons">
-                            <button className="btn btn-primary me-2" onClick={handleConfirm}>
+                            <button className="btn btn-primary" onClick={handleConfirm}>
                                 Confirmer
                             </button>
                             <button className="btn btn-outline-secondary" onClick={() => setShowConfirmation(false)}>

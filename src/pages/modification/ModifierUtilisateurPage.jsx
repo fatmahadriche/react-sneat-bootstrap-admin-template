@@ -4,6 +4,7 @@ import { useAuth } from "../../context/authContext";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "./ModifierUtilisateurModal.css";
 
 const ModifierUtilisateurPage = () => {
     const { id } = useParams();
@@ -95,18 +96,27 @@ const ModifierUtilisateurPage = () => {
                 userData,
                 {
                     headers: {
-                        Authorization: `Bearer ${user.token}`,
-                    },
+                        'Authorization': `Bearer ${user.token}`,
+                        'Content-Type': 'application/json' // Ajout explicite
+                    }
                 }
             );
 
-            toast.success(response.data.message || "Utilisateur modifié avec succès !");
-            setTimeout(() => {
-                navigate("/utilisateurs");
-            }, 2000);
+            if (response.status === 200) {
+                toast.success("Modification réussie !");
+                setTimeout(() => navigate("/utilisateurs"), 1500);
+            }
         } catch (error) {
-            console.error("Erreur :", error.response?.data || error.message);
-            toast.error(error.response?.data?.message || "Erreur lors de la modification de l'utilisateur.");
+            console.error("Erreur détaillée:", {
+                status: error.response?.status,
+                data: error.response?.data,
+                headers: error.response?.headers
+            });
+
+            toast.error(
+                error.response?.data?.message ||
+                "Erreur lors de la modification. Vérifiez la console."
+            );
         }
     };
 
@@ -210,11 +220,24 @@ const ModifierUtilisateurPage = () => {
                     <div className="modal-content">
                         <h2>Confirmer la modification</h2>
                         <p>Êtes-vous sûr de vouloir modifier cet utilisateur ?</p>
+
+                        {/* Affichez les changements */}
+                        <div className="changes-preview">
+                            {Object.keys(userData).map(key => (
+                                <p key={key}>
+                                    <strong>{key}:</strong> {userData[key]}
+                                </p>
+                            ))}
+                        </div>
+
                         <div className="modal-buttons">
-                            <button className="btn btn-primary me-2" onClick={handleConfirm}>
+                            <button className="btn btn-primary" onClick={handleConfirm}>
                                 Confirmer
                             </button>
-                            <button className="btn btn-outline-secondary" onClick={() => setShowConfirmation(false)}>
+                            <button
+                                className="btn btn-outline-secondary"
+                                onClick={() => setShowConfirmation(false)}
+                            >
                                 Annuler
                             </button>
                         </div>
