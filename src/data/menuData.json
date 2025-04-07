@@ -1,6 +1,6 @@
 [
     {
-        "header": "",
+        "header": "TABLEAU DE BORD",
         "items": [
             {
                 "text": "Dashboard",
@@ -8,78 +8,82 @@
                 "available": true,
                 "link": "/admin/dashboard"
             }
-            
         ]
     },
     {
-        "header": "APPS & PAGES",
+        "header": "GESTION",
         "items": [
-            
             {
-                "text": "Account Setting",
-                "icon": "bx bx-dock-top",
+                "text": "Utilisateurs",
+                "icon": "bx bx-user",
                 "available": true,
-                "link": "",
+                "link": null,
                 "submenu": [
                     {
-                        "text": "Account",
+                        "text": "Créer utilisateur",
+                        "icon": "bx bx-plus",
+                        "available": true,
+                        "link": "/utilisateurs/ajouter"
+                    },
+                    {
+                        "text": "Liste des utilisateurs",
+                        "icon": "bx bx-table",
+                        "available": true,
+                        "link": "/utilisateurs"
+                    }
+                ]
+            },
+            {
+                "text": "Documents RH",
+                "icon": "bx bx-file-blank",
+                "available": true,
+                "link": null,
+                "submenu": [
+                    {
+                        "text": "Feuilles de pointage",
+                        "icon": "bx bx-time",
+                        "available": true,
+                        "link": "/feuille-pointage" 
+                    },
+                    {
+                        "text": "Feuilles de présence",
+                        "icon": "bx bx-calendar-check",
+                        "available": true,
+                        "link": "/documents/presence"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "header": "PARAMÈTRES",
+        "items": [
+            {
+                "text": "Configuration du compte",
+                "icon": "bx bx-cog",
+                "available": true,
+                "link": null,
+                "submenu": [
+                    {
+                        "text": "Profil",
+                        "icon": "bx bx-user-circle",
                         "available": true,
                         "link": "/account/settings"
                     },
                     {
-                        "text": "Notification",
+                        "text": "Notifications",
+                        "icon": "bx bx-bell", 
                         "available": true,
                         "link": "/account/notifications"
                     }
-                    
                 ]
             },
             {
-                "text": "Logout",
-                "icon": "bx bx-lock-open-alt",
+                "text": "Déconnexion",
+                "icon": "bx bx-log-out",
                 "available": true,
-                "link": ""
-                
+                "link": "/logout"
             }
-            
-        ]
-    },
-    {
-        "header": "Components",
-        "items": [
-            
-            
-        ]
-    },
-    {
-        "header": "FORMS & TABLES",
-        "items": [
-            {
-                "text": "Gestion des utilisateurs",
-                "icon": "bx bx-user", 
-                "available": true,
-                "link": null, 
-                "submenu": [
-                    {
-                        "text": "Ajouter un utilisateur",
-                        "icon": "bx bx-plus",
-                        "available": true,
-                        "link": "/utilisateurs/ajouter" 
-                    },
-                    {
-                        "text": "Liste des utilisateurs", 
-                        "icon": "bx bx-table",
-                        "available": true,
-                        "link": "/utilisateurs" 
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        "header": "MISC",
-        "items": [
-            
         ]
     }
 ]

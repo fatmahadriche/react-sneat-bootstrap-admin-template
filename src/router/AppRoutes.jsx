@@ -9,6 +9,8 @@ import ProtectedRoute from "../ProtectedRoute";
 import AjouterUtilisateurPage from "../pages/new/AjouterUtilisateurPage";
 import ModifierUtilisateurPage from "../pages/modification/ModifierUtilisateurPage"; // Importez le composant de modification
 
+import FeuillePointagePage from '../pages/feuille/FeuillePointagePage';
+
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -79,6 +81,15 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/feuille-pointage"
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <FeuillePointagePage />
+          </ProtectedRoute>
+        }
+      />
+
     </Routes>
   );
 };
