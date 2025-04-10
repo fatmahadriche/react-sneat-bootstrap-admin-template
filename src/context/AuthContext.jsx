@@ -12,16 +12,42 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const safeJsonParse = (str) => {
+    // Gestion spécifique de la chaîne "undefined"
+    if (str === "undefined") return null;
+    
+    try {
+      return str ? JSON.parse(str) : null;
+    } catch (error) {
+      console.error("JSON parse error:", error);
+      return null;
+    }
+  };
+
+  const cleanAuthData = () => {
+    ["token", "role", "userData", "tokenExpiration"].forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value === "undefined") localStorage.removeItem(key);
+    });
+  };
+
   useEffect(() => {
     const checkAuth = () => {
+      cleanAuthData(); // Nettoyage initial
+
       const token = localStorage.getItem("token");
       const role = localStorage.getItem("role");
+      const userData = safeJsonParse(localStorage.getItem("userData"));
       const tokenExpiration = localStorage.getItem("tokenExpiration");
 
       if (token && role && tokenExpiration) {
         const isTokenExpired = Date.now() > parseInt(tokenExpiration, 10);
         if (!isTokenExpired) {
-          setUser({ token, role });
+          setUser({ 
+            token, 
+            role,
+            ...(userData || {}) // Garantit un objet vide
+          });
         } else {
           logout();
         }
@@ -32,24 +58,30 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
-  const login = (token, role) => {
-    const expiresIn = 3600;
+  const login = (token, role, userData = {}) => {
+    const expiresIn = 3600 * 1000;
+    const expirationTime = Date.now() + expiresIn;
+
     localStorage.setItem("token", token);
     localStorage.setItem("role", role);
-    localStorage.setItem("tokenExpiration", Date.now() + expiresIn * 1000);
-    setUser({ token, role });
-    navigate("/admin/dashboard");
+    localStorage.setItem("userData", JSON.stringify(userData));
+    localStorage.setItem("tokenExpiration", expirationTime.toString());
+
+    setUser({ token, role, ...userData });
+    navigate(`/${role}/dashboard`);
   };
 
   const logout = () => {
     localStorage.clear();
     setUser(null);
-    window.location.href = '/auth/login';
-    
-    // Empêcher la navigation arrière après la déconnexion
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+    navigate("/auth/login");
+    window.location.reload();
+  };
+
+  const updateUser = (newUserData) => {
+    const updatedUser = { ...user, ...newUserData };
+    setUser(updatedUser);
+    localStorage.setItem("userData", JSON.stringify(newUserData));
   };
 
   if (loading) {
@@ -57,7 +89,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

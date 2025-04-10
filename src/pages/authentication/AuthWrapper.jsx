@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import './page-auth.css'; // Conservez le fichier CSS existant pour les autres styles
 
+// Dans AuthWrapper.jsx
 export const AuthWrapper = ({ children }) => {
     return (
         <div className="container-xxl">
@@ -10,26 +11,19 @@ export const AuthWrapper = ({ children }) => {
                     <div className="card">
                         <div className="card-body">
                             <div className="app-brand justify-content-center">
-                                <Link aria-label='Go to Home Page' to="/" className="app-brand-link gap-2">
+                                {/* Remplacez Link par un div */}
+                                <div className="app-brand-link gap-2" style={{ cursor: 'default' }}>
                                     <span className="app-brand-logo demo">
-                                        {/* Remplacez le chemin par celui de votre logo STEG */}
                                         <img
-                                            src="/assets/img/STEG.jpg" // Chemin vers le logo STEG
+                                            src="/assets/img/STEG.jpg"
                                             alt="steg-logo"
-                                            style={{
-                                                width: '40px', // Ajustez la largeur du logo
-                                                height: '40px', // Ajustez la hauteur du logo
-                                                marginRight: '10px', // Espacement entre le logo et le texte
-                                            }}
+                                            style={{ width: '40px', height: '40px' }}
                                         />
                                     </span>
-                                    <span
-                                        className="app-brand-text demo text-body fw-bold"
-                                        style={{ textTransform: 'uppercase' }} // Ajout de la propriété CSS
-                                    >
+                                    <span className="app-brand-text demo text-body fw-bold" style={{ textTransform: 'uppercase' }}>
                                         STEG
                                     </span>
-                                </Link>
+                                </div>
                             </div>
                             {children}
                         </div>

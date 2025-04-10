@@ -49,7 +49,7 @@
                         "text": "Feuilles de présence",
                         "icon": "bx bx-calendar-check",
                         "available": true,
-                        "link": "/documents/presence"
+                        "link": "/feuille-presence"
                     }
                 ]
             }

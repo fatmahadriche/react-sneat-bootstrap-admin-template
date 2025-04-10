@@ -20,11 +20,10 @@ const ModifierUtilisateurPage = () => {
         role: "agent",
     });
 
-    const [loading, setLoading] = useState(true); // État de chargement
+    const [loading, setLoading] = useState(true);
     const [errors, setErrors] = useState({});
     const [showConfirmation, setShowConfirmation] = useState(false);
 
-    // Récupérer les données de l'utilisateur
     useEffect(() => {
         const fetchUser = async () => {
             try {
@@ -42,162 +41,98 @@ const ModifierUtilisateurPage = () => {
                 toast.error(error.response?.data?.message || "Impossible de récupérer l'utilisateur.");
                 navigate("/utilisateurs");
             } finally {
-                setLoading(false); // Désactiver l'état de chargement
+                setLoading(false);
             }
         };
 
         fetchUser();
     }, [id, user.token, navigate]);
 
-    // Afficher un indicateur de chargement
-    if (loading) {
-        return <div>Chargement en cours...</div>;
-    }
-
-    // Validation des champs
     const validate = () => {
         let tempErrors = {};
-        if (!userData.matricule.match(/^\d{5}$/)) {
-            tempErrors.matricule = "Le matricule doit contenir exactement 5 chiffres.";
-        }
-        if (!userData.nom.trim()) {
-            tempErrors.nom = "Le nom est requis.";
-        }
-        if (!userData.prenom.trim()) {
-            tempErrors.prenom = "Le prénom est requis.";
-        }
-        if (!userData.email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/)) {
-            tempErrors.email = "Veuillez entrer un email valide.";
-        }
-        if (!userData.tel.match(/^\d{8}$/)) {
-            tempErrors.tel = "Le numéro de téléphone doit contenir 8 chiffres.";
-        }
+        if (!userData.matricule.match(/^\d{5}$/)) tempErrors.matricule = "Matricule invalide (5 chiffres)";
+        if (!userData.nom.trim()) tempErrors.nom = "Nom requis";
+        if (!userData.prenom.trim()) tempErrors.prenom = "Prénom requis";
+        if (!userData.email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/)) tempErrors.email = "Email invalide";
+        if (!userData.tel.match(/^\d{8}$/)) tempErrors.tel = "Téléphone invalide (8 chiffres)";
 
         setErrors(tempErrors);
         return Object.keys(tempErrors).length === 0;
     };
 
-    // Gestion de la soumission du formulaire
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (validate()) {
-            setShowConfirmation(true);
-        } else {
-            toast.error("Veuillez corriger les erreurs avant de continuer.");
-        }
+        validate() ? setShowConfirmation(true) : toast.error("Veuillez corriger les erreurs");
     };
 
-    // Confirmation de la modification
     const handleConfirm = async () => {
         setShowConfirmation(false);
         try {
-            const response = await axios.put(
+            await axios.put(
                 `${import.meta.env.VITE_APP_API_URL}/auth/admin/update-user/${id}`,
                 userData,
                 {
                     headers: {
-                        'Authorization': `Bearer ${user.token}`,
-                        'Content-Type': 'application/json' // Ajout explicite
+                        Authorization: `Bearer ${user.token}`,
+                        'Content-Type': 'application/json'
                     }
                 }
             );
-
-            if (response.status === 200) {
-                toast.success("Modification réussie !");
-                setTimeout(() => navigate("/utilisateurs"), 1500);
-            }
+            toast.success("Modification réussie !");
+            setTimeout(() => navigate("/utilisateurs"), 1500);
         } catch (error) {
-            console.error("Erreur détaillée:", {
-                status: error.response?.status,
-                data: error.response?.data,
-                headers: error.response?.headers
-            });
-
-            toast.error(
-                error.response?.data?.message ||
-                "Erreur lors de la modification. Vérifiez la console."
-            );
+            console.error("Erreur :", error);
+            toast.error(error.response?.data?.message || "Erreur lors de la modification");
         }
     };
 
+    if (loading) {
+        return (
+            <div className="loading-overlay">
+                <div className="loading-spinner"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="card mb-4">
-            <h5 className="card-header">Modifier un utilisateur</h5>
+        <div className="card mb-4 custom-form-card">
+            <h5 className="card-header d-flex align-items-center">
+                <i className="bx bx-edit me-2" style={{ fontSize: "1.5rem", color: "#2a5c7d" }}></i>
+                Modifier l'utilisateur
+            </h5>
+
             <div className="card-body">
                 <form onSubmit={handleSubmit}>
                     <div className="row">
-                        {/* Matricule */}
-                        <div className="mb-3 col-md-6">
-                            <label htmlFor="matricule" className="form-label">Matricule</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                id="matricule"
-                                value={userData.matricule || ""} // Valeur par défaut
-                                onChange={(e) => setUserData({ ...userData, matricule: e.target.value })}
-                                disabled
-                            />
-                        </div>
+                        {/* Champs du formulaire */}
+                        {['matricule', 'nom', 'prenom', 'email', 'tel'].map((field) => (
+                            <div className="mb-3 col-md-6" key={field}>
+                                <label htmlFor={field} className="form-label">
+                                    <i className={`bx bx-${getFieldIcon(field)} me-1 ${getFieldColor(field)}`}></i>
+                                    {getFieldLabel(field)}
+                                </label>
+                                <input
+                                    type={field === 'email' ? 'email' : 'text'}
+                                    className={`form-control input-style ${errors[field] ? 'is-invalid' : ''}`}
+                                    id={field}
+                                    value={userData[field] || ""}
+                                    onChange={(e) => setUserData({ ...userData, [field]: e.target.value })}
+                                    disabled={field === 'matricule'}
+                                />
+                                {errors[field] && <div className="invalid-feedback">{errors[field]}</div>}
+                            </div>
+                        ))}
 
-                        {/* Nom */}
+                        {/* Sélecteur de rôle */}
                         <div className="mb-3 col-md-6">
-                            <label htmlFor="nom" className="form-label">Nom</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                id="nom"
-                                value={userData.nom || ""} // Valeur par défaut
-                                onChange={(e) => setUserData({ ...userData, nom: e.target.value })}
-                            />
-                            {errors.nom && <span className="text-danger">{errors.nom}</span>}
-                        </div>
-
-                        {/* Prénom */}
-                        <div className="mb-3 col-md-6">
-                            <label htmlFor="prenom" className="form-label">Prénom</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                id="prenom"
-                                value={userData.prenom || ""} // Valeur par défaut
-                                onChange={(e) => setUserData({ ...userData, prenom: e.target.value })}
-                            />
-                            {errors.prenom && <span className="text-danger">{errors.prenom}</span>}
-                        </div>
-
-                        {/* Email */}
-                        <div className="mb-3 col-md-6">
-                            <label htmlFor="email" className="form-label">Email</label>
-                            <input
-                                type="email"
-                                className="form-control"
-                                id="email"
-                                value={userData.email || ""} // Valeur par défaut
-                                onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                            />
-                            {errors.email && <span className="text-danger">{errors.email}</span>}
-                        </div>
-
-                        {/* Téléphone */}
-                        <div className="mb-3 col-md-6">
-                            <label htmlFor="tel" className="form-label">Téléphone</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                id="tel"
-                                value={userData.tel || ""} // Valeur par défaut
-                                onChange={(e) => setUserData({ ...userData, tel: e.target.value })}
-                            />
-                            {errors.tel && <span className="text-danger">{errors.tel}</span>}
-                        </div>
-
-                        {/* Rôle */}
-                        <div className="mb-3 col-md-6">
-                            <label htmlFor="role" className="form-label">Rôle</label>
+                            <label htmlFor="role" className="form-label">
+                                <i className="bx bx-shield me-1 text-purple"></i>
+                                Rôle
+                            </label>
                             <select
-                                className="form-select"
+                                className="form-select input-style"
                                 id="role"
-                                value={userData.role || "agent"} // Valeur par défaut
+                                value={userData.role}
                                 onChange={(e) => setUserData({ ...userData, role: e.target.value })}
                             >
                                 <option value="admin">Admin</option>
@@ -207,47 +142,99 @@ const ModifierUtilisateurPage = () => {
                         </div>
                     </div>
 
-                    <div className="mt-2">
-                        <button type="submit" className="btn btn-primary me-2">Modifier</button>
-                        <button type="button" className="btn btn-outline-secondary" onClick={() => navigate("/utilisateurs")}>Annuler</button>
+                    <div className="mt-4 d-flex gap-3">
+                        <button type="submit" className="btn btn-primary btn-save">
+                            <i className="bx bx-save me-2"></i>
+                            Enregistrer
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-cancel"
+                            onClick={() => navigate("/utilisateurs")}
+                        >
+                            <i className="bx bx-x-circle me-2"></i>
+                            Annuler
+                        </button>
                     </div>
                 </form>
-            </div>
 
-            {/* Modal de confirmation */}
-            {showConfirmation && (
-                <div className="modal">
-                    <div className="modal-content">
-                        <h2>Confirmer la modification</h2>
-                        <p>Êtes-vous sûr de vouloir modifier cet utilisateur ?</p>
+                {/* Modal de confirmation */}
+                {showConfirmation && (
+                    <div className="modal-overlay global-z-index">
+                        <div className="modal-content">
+                            <h2 className="modal-title">
+                                <i className="bx bx-check-shield me-2"></i>
+                                Confirmer la modification
+                            </h2>
 
-                        {/* Affichez les changements */}
-                        <div className="changes-preview">
-                            {Object.keys(userData).map(key => (
-                                <p key={key}>
-                                    <strong>{key}:</strong> {userData[key]}
-                                </p>
-                            ))}
-                        </div>
+                            <div className="changes-preview">
+                                {['matricule', 'nom', 'prenom', 'email', 'tel', 'role'].map((key) => (
+                                    <p key={key} className="modal-detail">
+                                        <i className={`bx bx-${getFieldIcon(key)} me-2`}></i>
+                                        <strong>{getFieldLabel(key)} :</strong>
+                                        {key === 'role'
+                                            ? userData[key].charAt(0).toUpperCase() + userData[key].slice(1).toLowerCase()
+                                            : userData[key]}
+                                    </p>
+                                ))}
+                            </div>
 
-                        <div className="modal-buttons">
-                            <button className="btn btn-primary" onClick={handleConfirm}>
-                                Confirmer
-                            </button>
-                            <button
-                                className="btn btn-outline-secondary"
-                                onClick={() => setShowConfirmation(false)}
-                            >
-                                Annuler
-                            </button>
+                            <div className="modal-buttons">
+                                <button className="btn btn-success btn-confirm" onClick={handleConfirm}>
+                                    <i className="bx bx-check me-2"></i>
+                                    Confirmer
+                                </button>
+                                <button
+                                    className="btn btn-outline-danger"
+                                    onClick={() => setShowConfirmation(false)}
+                                >
+                                    <i className="bx bx-x me-2"></i>
+                                    Annuler
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            <ToastContainer position="top-right" autoClose={5000} />
+                <ToastContainer position="top-right" autoClose={5000} />
+            </div>
         </div>
     );
 };
 
+// Fonctions utilitaires
+const getFieldIcon = (field) => {
+    const icons = {
+        matricule: 'id-card',
+        nom: 'user',
+        prenom: 'user-voice',
+        email: 'envelope',
+        tel: 'phone',
+        role: 'shield'
+    };
+    return icons[field] || 'info-circle';
+};
+
+const getFieldLabel = (field) => {
+    const labels = {
+        matricule: 'Matricule',
+        nom: 'Nom',
+        prenom: 'Prénom',
+        email: 'Email',
+        tel: 'Téléphone',
+        role: 'Rôle'
+    };
+    return labels[field] || field;
+};
+const getFieldColor = (field) => {
+    const colors = {
+        matricule: 'text-primary',
+        nom: 'text-success',
+        prenom: 'text-warning',
+        email: 'text-danger',
+        tel: 'text-info',
+        role: 'text-purple'
+    };
+    return colors[field] || 'text-secondary';
+};
 export default ModifierUtilisateurPage;

@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import './page-auth.css';
-import { AuthWrapper } from "./AuthWrapper";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/authContext";
+import axios from "axios";
 import { FaUser, FaLock, FaSignInAlt } from "react-icons/fa";
+import { useAuth } from "../../context/authContext";
+import { AuthWrapper } from "./AuthWrapper";
+
 export const LoginPage = () => {
     const [matricule, setMatricule] = useState("");
     const [password, setPassword] = useState("");
@@ -13,10 +12,9 @@ export const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
-
     const validateMatriculeInput = (event) => {
         if (
-            event.key === "Backspace" ||    
+            event.key === "Backspace" || 
             event.key === "Delete" ||
             event.key === "ArrowLeft" ||
             event.key === "ArrowRight" ||
@@ -35,7 +33,6 @@ export const LoginPage = () => {
         setLoading(true);
         setError("");
 
-        // Validation côté client
         if (!matricule || !password) {
             setError("Veuillez remplir tous les champs.");
             setLoading(false);
@@ -48,24 +45,18 @@ export const LoginPage = () => {
                 password,
             });
 
-            const validRoles = ['admin']; // Seul l'admin est autorisé pour le moment
-            if (!validRoles.includes(res.data.role.toLowerCase())) {
-                throw new Error("Rôle utilisateur non reconnu");
+            if (!['admin'].includes(res.data.role.toLowerCase())) {
+                throw new Error("Accès non autorisé");
             }
 
-            // Appelez la fonction login avec le token et le rôle
-            login(res.data.token, res.data.role);
+            login(res.data.token, res.data.role, res.data.matricule);
+            navigate('/admin/dashboard');
+
         } catch (err) {
-            // Gestion des erreurs sécurisées
-            if (err.response) {
-                // Toutes les erreurs côté serveur renvoient un message générique
-                setError("Identifiants invalides. Veuillez réessayer.");
-            } else if (err.request) {
-                // Erreur de réseau
-                setError("Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
+            if (err.response?.status === 401) {
+                setError("Identifiants incorrects");
             } else {
-                // Erreur inattendue
-                setError("Une erreur s'est produite. Veuillez réessayer plus tard.");
+                setError(err.message || "Une erreur est survenue");
             }
         }
         setLoading(false);
@@ -73,8 +64,8 @@ export const LoginPage = () => {
 
     return (
         <AuthWrapper>
-            <h4 className="mb-2">Welcome to Login! 👋</h4>
-            <p className="mb-4">Please enter your login credentials.</p>
+            <h4 className="mb-2">Bienvenue sur le Portail STEG 👋</h4>
+            <p className="mb-4">Veuillez saisir vos identifiants de connexion</p>
 
             {error && (
                 <div className="alert alert-danger" role="alert">
@@ -92,7 +83,7 @@ export const LoginPage = () => {
                         <input
                             type="text"
                             className="form-control"
-                            id="matricule"
+                            id="matricule-input" // ID unique
                             value={matricule}
                             onChange={(e) => {
                                 const value = e.target.value;
@@ -101,15 +92,19 @@ export const LoginPage = () => {
                                 }
                             }}
                             onKeyDown={validateMatriculeInput}
-                            placeholder="Enter your matricule"
+                            placeholder="Saisissez votre matricule"
                             autoFocus
                             required
+                            autoComplete="off"
+                            name="matricule-hidden" // Nom non standard
+                            inputMode="numeric"
+                            list="autocompleteOff" // Désactive l'autocomplete
                         />
                     </div>
                 </div>
                 <div className="mb-3 form-password-toggle">
                     <div className="d-flex justify-content-between">
-                        <label className="form-label" htmlFor="password">Password</label>
+                        <label className="form-label" htmlFor="password">Mot de passe</label>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <span style={{ marginRight: '10px' }}>
@@ -142,10 +137,10 @@ export const LoginPage = () => {
                         ) : (
                             <>
                                 <FaSignInAlt style={{ marginRight: '8px' }} />
-                                Sign in
+                                Se connecter
                             </>
                         )}
-                    </button>   
+                    </button>
                 </div>
             </form>
 
