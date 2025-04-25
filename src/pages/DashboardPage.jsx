@@ -25,8 +25,11 @@ const DashboardPage = () => {
     return (
         <div className="dashboard-container">
             <div className="dashboard-header">
-                <h1>Mon Calendrier</h1>
-                <p>Gérez vos rendez-vous et événements</p>
+                <div>
+                    <h1>Calendrier Professionnel</h1>
+                    <p>Gestion des événements et rendez-vous</p>
+                </div>
+                
             </div>
             <CalendarDashboard />
         </div>

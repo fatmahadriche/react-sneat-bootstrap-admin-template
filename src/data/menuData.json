@@ -6,7 +6,7 @@
                 "text": "Dashboard",
                 "icon": "bx bx-home",
                 "available": true,
-                "link": "/admin/dashboard"
+                "link": "/admin/dashboard" 
             }
         ]
     },

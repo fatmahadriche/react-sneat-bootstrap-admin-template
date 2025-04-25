@@ -76,6 +76,7 @@ const ListeUtilisateursPage = () => {
         <>
             <style>{`
                 /* Styles pour la modale de confirmation */
+                
                 .delete-modal-overlay {
                     position: fixed;
                     top: 0;
@@ -167,6 +168,7 @@ const ListeUtilisateursPage = () => {
                 .delete-modal-confirm:hover {
                     background: #bb2d3b;
                 }
+                    
             `}</style>
 
             <div className="card shadow-sm">
