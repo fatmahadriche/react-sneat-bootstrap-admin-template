@@ -1,4 +1,4 @@
-/* Variables du thème */
+/* Calendar.css */
 :root {
     --primary-color: #5C6BC0;
     --primary-hover: #3949AB;
@@ -13,13 +13,11 @@
     --shadow-medium: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
 }
 
-/* Reset et polices */
 body {
     font-family: 'Inter', sans-serif;
     background: var(--bg-color);
 }
 
-/* Conteneur principal */
 .dashboard-container {
     max-width: 1440px;
     margin: 0 auto;
@@ -27,7 +25,6 @@ body {
     min-height: 100vh;
 }
 
-/* En-tête */
 .dashboard-header {
     display: flex;
     justify-content: space-between;
@@ -48,7 +45,6 @@ body {
     margin: 0.25rem 0 0;
 }
 
-/* Barre d'outils calendrier */
 .calendar-toolbar {
     display: flex;
     align-items: center;
@@ -115,7 +111,6 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Côté droit */
 .calendar-sidebar {
     background: white;
     border-left: 1px solid var(--border-color);
@@ -131,7 +126,6 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
-/* Événements */
 .event-card {
     background: white;
     border-radius: 10px;
@@ -148,7 +142,6 @@ body {
     box-shadow: var(--shadow-medium);
 }
 
-/* Personnalisation FullCalendar */
 .fc {
     border-radius: 12px;
     overflow: hidden;
@@ -167,4 +160,26 @@ body {
     border-radius: 6px !important;
     padding: 0.25rem 0.5rem !important;
     font-size: 0.875rem;
+}
+
+.calendar-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

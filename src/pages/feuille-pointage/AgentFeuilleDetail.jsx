@@ -32,29 +32,29 @@ const AgentFeuilleDetail = () => {
 
     const filteredPointages = useMemo(() => {
         if (!feuille) return [];
-        
+
         return feuille.pointages.filter(pointage => {
             const datePointage = moment(pointage.date);
             let periodMatch = true;
-            
+
             if (filters.periodType === 'day' && filters.selectedDate) {
                 periodMatch = datePointage.isSame(filters.selectedDate, 'day');
             } else if (filters.periodType === 'month' && filters.selectedDate) {
                 periodMatch = datePointage.isSame(filters.selectedDate, 'month');
             }
-            
+
             let sessionMatch = true;
             if (filters.sessionType !== 'all') {
                 const matinTime = moment(pointage.matin, 'HH:mm');
                 const apresMidiTime = moment(pointage.apres_midi, 'HH:mm');
-                
+
                 if (filters.sessionType === 'normal') {
                     sessionMatch = matinTime.hours() >= 8 && apresMidiTime.hours() <= 17;
                 } else if (filters.sessionType === 'unique') {
                     sessionMatch = matinTime.hours() >= 6 && apresMidiTime.hours() <= 13;
                 }
             }
-            
+
             return periodMatch && sessionMatch;
         });
     }, [feuille, filters]);
@@ -71,11 +71,11 @@ const AgentFeuilleDetail = () => {
                         'Authorization': `Bearer ${user.token}`
                     }
                 });
-                
+
                 if (!res.ok) throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-                
+
                 const data = await res.json();
-                
+
                 if (data.length > 0) {
                     const feuilleData = data[0];
                     setFeuille({
@@ -84,13 +84,16 @@ const AgentFeuilleDetail = () => {
                             ...p,
                             matin: p.matin || '--:--',
                             apres_midi: p.apres_midi || '--:--'
-                        }))
+                        })),
+                        primes: feuilleData.primes?.map(p => typeof p === 'object' ? p.type : p) || [],
+                        absences: feuilleData.absences?.map(a => typeof a === 'object' ? a.type : a) || []
                     });
                     setFormData({
-                        primes: feuilleData.primes || [],
-                        absences: feuilleData.absences || [],
+                        primes: feuilleData.primes?.map(p => typeof p === 'object' ? p.type : p) || [],
+                        absences: feuilleData.absences?.map(a => typeof a === 'object' ? a.type : a) || [],
                         remarques: feuilleData.remarques || ''
                     });
+
                 } else {
                     setFeuille(null);
                 }
@@ -103,28 +106,13 @@ const AgentFeuilleDetail = () => {
                 setLoading(false);
             }
         };
-        
+
         if (user?.token) fetchData();
     }, [user?.token, matricule]);
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);
     };
-
-    const handlePrint = useReactToPrint({
-        content: () => componentRef.current,
-        documentTitle: `Feuille_pointage_${matricule}_${moment().format('YYYY-MM-DD')}`,
-        pageStyle: `
-            @page { size: A4 landscape; margin: 10mm; }
-            @media print {
-                body { -webkit-print-color-adjust: exact; }
-                .no-print { display: none !important; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #ddd; padding: 8px; }
-                .section-title { background-color: #f2f2f2; }
-            }
-        `
-    });
 
     const handleFilterChange = (name, value) => {
         setFilters(prev => ({
@@ -153,50 +141,15 @@ const AgentFeuilleDetail = () => {
         setFormData(prev => {
             const currentValues = [...prev[type]];
             const index = currentValues.indexOf(value);
-            
+
             if (index === -1) {
                 currentValues.push(value);
             } else {
                 currentValues.splice(index, 1);
             }
-            
+
             return { ...prev, [type]: currentValues };
         });
-    };
-
-    const handleDeletePointage = async (pointageId) => {
-        try {
-            const result = await Swal.fire({
-                title: 'Êtes-vous sûr?',
-                text: "Vous ne pourrez pas annuler cette suppression!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Oui, supprimer!',
-                cancelButtonText: 'Annuler'
-            });
-            
-            if (result.isConfirmed) {
-                const response = await fetch(`http://localhost:5000/api/pointages/${matricule}/${pointageId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${user.token}`
-                    }
-                });
-                
-                if (!response.ok) throw new Error('Échec de la suppression');
-                
-                setFeuille(prev => ({
-                    ...prev,
-                    pointages: prev.pointages.filter(p => p._id !== pointageId)
-                }));
-                
-                Swal.fire('Supprimé!', 'Le pointage a été supprimé.', 'success');
-            }
-        } catch (error) {
-            Swal.fire('Erreur!', error.message, 'error');
-        }
     };
 
     const handleSubmit = async () => {
@@ -209,13 +162,13 @@ const AgentFeuilleDetail = () => {
                 },
                 body: JSON.stringify(formData)
             });
-            
+
             if (!response.ok) throw new Error('Échec de la mise à jour');
-            
+
             const result = await response.json();
             setFeuille(prev => ({ ...prev, ...formData }));
             setIsEditing(false);
-            
+
             Swal.fire('Succès!', 'Modifications enregistrées avec succès', 'success');
         } catch (error) {
             Swal.fire('Erreur!', error.message, 'error');
@@ -285,7 +238,7 @@ const AgentFeuilleDetail = () => {
                     </h5>
                     <div className="d-flex align-items-center mt-2">
                         <span className="badge bg-light text-dark me-2 border">
-                            <i className="bx bx-user me-1 text-muted"></i> 
+                            <i className="bx bx-user me-1 text-muted"></i>
                             {feuille.nom_complet}
                         </span>
                         <span className="badge bg-light text-dark border">
@@ -295,9 +248,6 @@ const AgentFeuilleDetail = () => {
                     </div>
                 </div>
                 <div>
-                    <button onClick={handlePrint} className="btn btn-outline-primary me-2">
-                        <i className="bx bx-printer me-1"></i> Imprimer
-                    </button>
                     <Link to="/feuille-pointage" className="btn btn-outline-secondary me-2">
                         <i className="bx bx-arrow-back me-1"></i> Retour
                     </Link>
@@ -312,7 +262,7 @@ const AgentFeuilleDetail = () => {
                     )}
                 </div>
             </div>
-            
+
             <div className="card-body">
                 <div ref={componentRef}>
                     <div className="card mb-4 border-primary">
@@ -327,7 +277,7 @@ const AgentFeuilleDetail = () => {
                                 <div className="col-md-4">
                                     <label className="form-label fw-bold">Période</label>
                                     <div className="input-group">
-                                        <select 
+                                        <select
                                             className="form-select"
                                             value={filters.periodType}
                                             onChange={(e) => handleFilterChange('periodType', e.target.value)}
@@ -349,7 +299,7 @@ const AgentFeuilleDetail = () => {
                                         )}
                                     </div>
                                 </div>
-                                
+
                                 <div className="col-md-4">
                                     <label className="form-label fw-bold">Type de séance</label>
                                     <select
@@ -362,10 +312,10 @@ const AgentFeuilleDetail = () => {
                                         <option value="unique">Séance unique (6h-13h)</option>
                                     </select>
                                 </div>
-                                
+
                                 <div className="col-md-4 d-flex align-items-end">
-                                    <button 
-                                        className="btn btn-outline-primary w-100" 
+                                    <button
+                                        className="btn btn-outline-primary w-100"
                                         onClick={resetFilters}
                                         disabled={filters.periodType === 'none' && filters.sessionType === 'all'}
                                     >
@@ -391,10 +341,10 @@ const AgentFeuilleDetail = () => {
                             <>
                                 <div className="mb-3 text-muted small">
                                     <i className="bx bx-show me-1"></i>
-                                    Affichage {offset + 1}-{Math.min(offset + PER_PAGE, filteredPointages.length)} 
+                                    Affichage {offset + 1}-{Math.min(offset + PER_PAGE, filteredPointages.length)}
                                     sur {filteredPointages.length} résultats
                                 </div>
-                                
+
                                 <div className="table-responsive">
                                     <table className="table table-bordered table-hover">
                                         <thead className="table-primary">
@@ -411,17 +361,17 @@ const AgentFeuilleDetail = () => {
                                             {currentPointages.map((pointage, index) => (
                                                 <tr key={index}>
                                                     <td className="fw-bold">{moment(pointage.date).format('DD/MM/YYYY')}</td>
-                                                    <td className="fw-bold">{feuille.date_debut_emploi.split(' ')[1].substring(0,5)}</td>
-                                                    <td className="fw-bold">{feuille.date_fin_emploi.split(' ')[1].substring(0,5)}</td>
+                                                    <td className="fw-bold">{feuille.date_debut_emploi.split(' ')[1].substring(0, 5)}</td>
+                                                    <td className="fw-bold">{feuille.date_fin_emploi.split(' ')[1].substring(0, 5)}</td>
                                                     <td className="text-success fw-bold">{pointage.matin}</td>
                                                     <td className="text-danger fw-bold">{pointage.apres_midi}</td>
                                                     <td className="no-print">
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-danger"
-                                                            onClick={() => handleDeletePointage(pointage._id)}
-                                                            title="Supprimer"
+                                                        <button
+                                                            className="btn btn-sm btn-outline-warning"
+                                                            onClick={() => setIsEditing(!isEditing)}
+                                                            title="Modifier"
                                                         >
-                                                            <i className="bx bx-trash"></i>
+                                                            <i className="bx bx-edit"></i>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -488,7 +438,7 @@ const AgentFeuilleDetail = () => {
                                     <ul className="list-group">
                                         {feuille.primes.map((prime, index) => (
                                             <li key={index} className="list-group-item">
-                                                {prime}
+                                                {prime.type || prime}
                                             </li>
                                         ))}
                                     </ul>
@@ -532,7 +482,7 @@ const AgentFeuilleDetail = () => {
                                     <ul className="list-group">
                                         {feuille.absences.map((absence, index) => (
                                             <li key={index} className="list-group-item">
-                                                {absence}
+                                                {absence.type || absence}
                                             </li>
                                         ))}
                                     </ul>

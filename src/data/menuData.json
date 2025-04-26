@@ -1,89 +1,117 @@
 [
-    {
-        "header": "TABLEAU DE BORD",
-        "items": [
-            {
-                "text": "Dashboard",
-                "icon": "bx bx-home",
-                "available": true,
-                "link": "/admin/dashboard" 
-            }
+  {
+    "header": "TABLEAU DE BORD",
+    "roles": ["admin", "gestionnaire", "agent"],
+    "items": [
+      {
+        "text": "Dashboard",
+        "icon": "bx bx-home",
+        "available": true,
+        "link": "/admin/dashboard",
+        "roles": ["admin", "gestionnaire", "agent"]
+      }
+    ]
+  },
+  {
+    "header": "GESTION",
+    "roles": ["admin"],
+    "items": [
+      {
+        "text": "Utilisateurs",
+        "icon": "bx bx-user",
+        "roles": ["admin"],
+        "available": true,
+        "link": null,
+        "submenu": [
+          {
+            "text": "Créer utilisateur",
+            "icon": "bx bx-plus",
+            "available": true,
+            "link": "/utilisateurs/ajouter",
+            "roles": ["admin"]
+          },
+          {
+            "text": "Liste des utilisateurs",
+            "icon": "bx bx-table",
+            "available": true,
+            "link": "/utilisateurs",
+            "roles": ["admin"]
+          }
         ]
-    },
-    {
-        "header": "GESTION",
-        "items": [
-            {
-                "text": "Utilisateurs",
-                "icon": "bx bx-user",
-                "available": true,
-                "link": null,
-                "submenu": [
-                    {
-                        "text": "Créer utilisateur",
-                        "icon": "bx bx-plus",
-                        "available": true,
-                        "link": "/utilisateurs/ajouter"
-                    },
-                    {
-                        "text": "Liste des utilisateurs",
-                        "icon": "bx bx-table",
-                        "available": true,
-                        "link": "/utilisateurs"
-                    }
-                ]
-            },
-            {
-                "text": "Documents RH",
-                "icon": "bx bx-file-blank",
-                "available": true,
-                "link": null,
-                "submenu": [
-                    {
-                        "text": "Feuilles de pointage",
-                        "icon": "bx bx-time",
-                        "available": true,
-                        "link": "/feuille-pointage" 
-                    },
-                    {
-                        "text": "Feuilles de présence",
-                        "icon": "bx bx-calendar-check",
-                        "available": true,
-                        "link": "/feuille-presence"
-                    }
-                ]
-            }
+      },
+      {
+        "text": "Documents RH",
+        "roles": ["admin", "gestionnaire", "agent"],
+        "icon": "bx bx-file-blank",
+        "available": true,
+        "link": null,
+        "submenu": [
+          {
+            "text": "Feuilles de pointage",
+            "icon": "bx bx-time",
+            "available": true,
+            "link": "/feuille-pointage",
+            "roles": ["admin", "gestionnaire"]
+          },
+          {
+            "text": "Mouvements du personnel",
+            "icon": "bx bx-calendar-check",
+            "available": true,
+            "link": "/feuille-presence",
+            "roles": ["admin", "gestionnaire"]
+          },
+          {
+            "text": "Suivi de mon pointage",
+            "icon": "bx bx-time",
+            "available": true,
+            "link": "/mes-feuilles-pointage/:matricule",
+            "roles": ["agent"]
+          },
+          {
+            "text": "Historique de mes mouvements",
+            "icon": "bx bx-calendar-check",
+            "available": true,
+            "link": "/mes-feuilles-presence/:matricule",
+            "roles": ["agent"]
+          }
         ]
-    },
-    {
-        "header": "PARAMÈTRES",
-        "items": [
-            {
-                "text": "Configuration du compte",
-                "icon": "bx bx-cog",
-                "available": true,
-                "link": null,
-                "submenu": [
-                    {
-                        "text": "Profil",
-                        "icon": "bx bx-user-circle",
-                        "available": true,
-                        "link": "/account/settings"
-                    },
-                    {
-                        "text": "Notifications",
-                        "icon": "bx bx-bell", 
-                        "available": true,
-                        "link": "/account/notifications"
-                    }
-                ]
-            },
-            {
-                "text": "Déconnexion",
-                "icon": "bx bx-log-out",
-                "available": true,
-                "link": "/logout"
-            }
+      }
+    ]
+  },
+  {
+    "header": "PARAMÈTRES",
+    "roles": ["admin", "gestionnaire", "agent"],
+    "items": [
+      {
+        "text": "Configuration du compte",
+        "roles": ["admin", "gestionnaire", "agent"],
+        "icon": "bx bx-cog",
+        "available": true,
+        "link": null,
+        "submenu": [
+          {
+            "text": "Profil",
+            "icon": "bx bx-user-circle",
+            "available": true,
+            "link": "/account/settings",
+            "roles": ["admin", "gestionnaire", "agent"]
+          },
+          {
+            "text": "Notifications",
+            "icon": "bx bx-bell",
+            "available": true,
+            "link": "/account/notifications",
+            "roles": ["admin", "gestionnaire"]
+          }
         ]
-    }
+      },
+      {
+        "text": "Déconnexion",
+        "icon": "bx bx-log-out",
+        "roles": ["admin", "gestionnaire", "agent"],
+        "available": true,
+        "link": "/logout"
+      }
+    ]
+  }
 ]

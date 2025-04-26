@@ -59,16 +59,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (token, role, userData = {}) => {
+    const normalizedRole = role.toLowerCase(); 
     const expiresIn = 3600 * 1000;
     const expirationTime = Date.now() + expiresIn;
 
     localStorage.setItem("token", token);
-    localStorage.setItem("role", role);
+    localStorage.setItem("role", normalizedRole);
     localStorage.setItem("userData", JSON.stringify(userData));
     localStorage.setItem("tokenExpiration", expirationTime.toString());
 
-    setUser({ token, role, ...userData });
-    navigate(`/${role}/dashboard`);
+    setUser({ token, role: normalizedRole, ...userData });
+    navigate(`/${normalizedRole}/dashboard`);
   };
 
   const logout = () => {

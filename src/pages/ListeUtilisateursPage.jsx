@@ -68,6 +68,10 @@ const ListeUtilisateursPage = () => {
         setCurrentPage(0);
     };
 
+    const handlePageClick = (event) => {
+        setCurrentPage(event.selected);
+    };
+
     useEffect(() => {
         fetchUsers();
     }, [currentPage, itemsPerPage]);
@@ -75,8 +79,6 @@ const ListeUtilisateursPage = () => {
     return (
         <>
             <style>{`
-                /* Styles pour la modale de confirmation */
-                
                 .delete-modal-overlay {
                     position: fixed;
                     top: 0;
@@ -168,13 +170,28 @@ const ListeUtilisateursPage = () => {
                 .delete-modal-confirm:hover {
                     background: #bb2d3b;
                 }
-                    
             `}</style>
 
             <div className="card shadow-sm">
-                <h5 className="card-header d-flex align-items-center">
-                    <i className="bx bx-list-ul me-2" style={{ fontSize: "1.5rem", color: "#0d6efd" }}></i>
-                    Liste des utilisateurs
+                <h5 className="card-header d-flex align-items-center justify-content-between">
+                    <div>
+                        <i className="bx bx-list-ul me-2" style={{ fontSize: "1.5rem", color: "#0d6efd" }}></i>
+                        Liste des utilisateurs
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                        <span className="text-muted small">Afficher :</span>
+                        <select
+                            className="form-select form-select-sm"
+                            value={itemsPerPage}
+                            onChange={handleItemsPerPageChange}
+                            style={{ width: 'auto' }}
+                        >
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                 </h5>
                 <div className="card-body">
                     {loading ? (
@@ -269,46 +286,36 @@ const ListeUtilisateursPage = () => {
                                 </table>
                             </div>
 
-                            <div className="d-flex justify-content-between align-items-center mt-4">
-                                <div>
-                                    <label htmlFor="itemsPerPage" className="me-2">
-                                        Éléments par page:
-                                    </label>
-                                    <select
-                                        id="itemsPerPage"
-                                        value={itemsPerPage}
-                                        onChange={handleItemsPerPageChange}
-                                        className="form-select form-select-sm d-inline-block w-auto"
-                                    >
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="50">50</option>
-                                        <option value="100">100</option>
-                                    </select>
+                            <div className="d-flex justify-content-between align-items-center mt-3">
+                                <div className="text-muted small">
+                                    Page {currentPage + 1} sur {totalPages}
                                 </div>
+                                
                                 <ReactPaginate
-                                    breakLabel="..."
-                                    nextLabel={<i className="bx bx-chevron-right"></i>}
-                                    onPageChange={({ selected }) => setCurrentPage(selected)}
-                                    pageRangeDisplayed={3}
-                                    pageCount={totalPages}
                                     previousLabel={<i className="bx bx-chevron-left"></i>}
-                                    renderOnZeroPageCount={null}
-                                    containerClassName="pagination pagination-sm"
+                                    nextLabel={<i className="bx bx-chevron-right"></i>}
+                                    pageCount={totalPages}
+                                    onPageChange={handlePageClick}
+                                    forcePage={currentPage}
+                                    containerClassName="pagination mb-0"
                                     activeClassName="active"
-                                    previousClassName="page-item"
-                                    nextClassName="page-item"
                                     pageClassName="page-item"
                                     pageLinkClassName="page-link"
+                                    previousClassName="page-item"
                                     previousLinkClassName="page-link"
+                                    nextClassName="page-item"
                                     nextLinkClassName="page-link"
+                                    breakLabel="..."
+                                    breakClassName="page-item"
+                                    breakLinkClassName="page-link"
+                                    marginPagesDisplayed={2}
+                                    pageRangeDisplayed={5}
                                 />
                             </div>
                         </>
                     )}
                 </div>
 
-                {/* Modale de confirmation de suppression */}
                 {showDeleteModal && (
                     <div className="delete-modal-overlay">
                         <div className="delete-modal-content">

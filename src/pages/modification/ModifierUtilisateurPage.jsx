@@ -17,6 +17,7 @@ const ModifierUtilisateurPage = () => {
         prenom: "",
         email: "",
         tel: "",
+        password: "", // Ajout du champ mot de passe
         role: "agent",
     });
 
@@ -55,6 +56,11 @@ const ModifierUtilisateurPage = () => {
         if (!userData.prenom.trim()) tempErrors.prenom = "Prénom requis";
         if (!userData.email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/)) tempErrors.email = "Email invalide";
         if (!userData.tel.match(/^\d{8}$/)) tempErrors.tel = "Téléphone invalide (8 chiffres)";
+        // Modification de la validation du mot de passe
+        if (userData.password && !/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(userData.password)) {
+            tempErrors.password = "Le mot de passe doit contenir 8 caractères avec lettre+chiffre";
+        }
+
 
         setErrors(tempErrors);
         return Object.keys(tempErrors).length === 0;
@@ -68,6 +74,8 @@ const ModifierUtilisateurPage = () => {
     const handleConfirm = async () => {
         setShowConfirmation(false);
         try {
+            const dataToSend = { ...userData };
+            if (!dataToSend.password) delete dataToSend.password;
             await axios.put(
                 `${import.meta.env.VITE_APP_API_URL}/auth/admin/update-user/${id}`,
                 userData,
@@ -104,15 +112,15 @@ const ModifierUtilisateurPage = () => {
             <div className="card-body">
                 <form onSubmit={handleSubmit}>
                     <div className="row">
-                        {/* Champs du formulaire */}
-                        {['matricule', 'nom', 'prenom', 'email', 'tel'].map((field) => (
+                        {/* Champs du formulaire avec ajout du mot de passe */}
+                        {['matricule', 'nom', 'prenom', 'email', 'tel', 'password'].map((field) => (
                             <div className="mb-3 col-md-6" key={field}>
                                 <label htmlFor={field} className="form-label">
                                     <i className={`bx bx-${getFieldIcon(field)} me-1 ${getFieldColor(field)}`}></i>
                                     {getFieldLabel(field)}
                                 </label>
                                 <input
-                                    type={field === 'email' ? 'email' : 'text'}
+                                    type={field === 'email' ? 'email' : field === 'password' ? 'password' : 'text'}
                                     className={`form-control input-style ${errors[field] ? 'is-invalid' : ''}`}
                                     id={field}
                                     value={userData[field] || ""}
@@ -202,7 +210,7 @@ const ModifierUtilisateurPage = () => {
     );
 };
 
-// Fonctions utilitaires
+// Fonctions utilitaires mises à jour
 const getFieldIcon = (field) => {
     const icons = {
         matricule: 'id-card',
@@ -210,7 +218,8 @@ const getFieldIcon = (field) => {
         prenom: 'user-voice',
         email: 'envelope',
         tel: 'phone',
-        role: 'shield'
+        role: 'shield',
+        password: 'lock-alt' // Ajout de l'icône pour le mot de passe
     };
     return icons[field] || 'info-circle';
 };
@@ -222,10 +231,12 @@ const getFieldLabel = (field) => {
         prenom: 'Prénom',
         email: 'Email',
         tel: 'Téléphone',
-        role: 'Rôle'
+        role: 'Rôle',
+        password: 'Mot de passe' // Ajout du label pour le mot de passe
     };
     return labels[field] || field;
 };
+
 const getFieldColor = (field) => {
     const colors = {
         matricule: 'text-primary',
@@ -233,8 +244,10 @@ const getFieldColor = (field) => {
         prenom: 'text-warning',
         email: 'text-danger',
         tel: 'text-info',
-        role: 'text-purple'
+        role: 'text-purple',
+        password: 'text-secondary' // Ajout de la couleur pour le mot de passe
     };
     return colors[field] || 'text-secondary';
 };
+
 export default ModifierUtilisateurPage;

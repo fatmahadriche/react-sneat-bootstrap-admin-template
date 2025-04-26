@@ -41,8 +41,10 @@ const AjouterUtilisateurPage = () => {
         if (!userData.tel.match(/^\d{8}$/)) {
             tempErrors.tel = "Le numéro de téléphone doit contenir 8 chiffres.";
         }
-        if (userData.password.length < 6) {
-            tempErrors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+        if (!userData.password.trim()) {
+            tempErrors.password = "Le mot de passe est requis.";
+        } else if (!/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(userData.password)) {
+            tempErrors.password = "Le mot de passe doit contenir 8 caractères avec lettre+chiffre";
         }
 
         setErrors(tempErrors);

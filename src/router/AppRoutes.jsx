@@ -7,8 +7,7 @@ import DashboardPage from "../pages/DashboardPage";
 import { useAuth } from "../context/AuthContext";
 import ProtectedRoute from "../ProtectedRoute";
 import AjouterUtilisateurPage from "../pages/new/AjouterUtilisateurPage";
-import ModifierUtilisateurPage from "../pages/modification/ModifierUtilisateurPage"; // Importez le composant de modification
-
+import ModifierUtilisateurPage from "../pages/modification/ModifierUtilisateurPage";
 import AgentListPage from '../pages/feuille-pointage/AgentListPage';
 import AgentFeuilleDetail from '../pages/feuille-pointage/AgentFeuilleDetail';
 import FeuillePresencePage from '../pages/feuille-presence/FeuillePresencePage';
@@ -21,27 +20,30 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/auth/login" replace />} />
 
-      {/* Login avec la bonne URL backend */}
+      {/* Route de login */}
       <Route
         path="/auth/login"
         element={<LoginPage apiUrl="http://localhost:5000/auth/login" />}
       />
 
-      {/* Routes protégées */}
-      <Route path="/admin/dashboard" element={
-        <ProtectedRoute requiredRole="admin">
-          <DashboardPage />
-        </ProtectedRoute>
-      } />
+      {/* Tableau de bord dynamique */}
+      <Route 
+        path="/:role/dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Ajoutez une route pour les non-autorisés */}
+      {/* Routes non autorisées */}
       <Route path="/unauthorized" element={<div>Accès non autorisé!</div>} />
 
-      {/* Routes protégées */}
+      {/* Configuration du compte */}
       <Route
         path="/account/settings"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
             <AccountPage />
           </ProtectedRoute>
         }
@@ -49,45 +51,43 @@ const AppRoutes = () => {
       <Route
         path="/account/notifications"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
             <NotificationPage />
           </ProtectedRoute>
         }
       />
 
-      {/* Route pour la page Liste des utilisateurs */}
+      {/* Gestion des utilisateurs */}
       <Route
         path="/utilisateurs"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin"]}>
             <ListeUtilisateursPage />
           </ProtectedRoute>
         }
       />
-
-      {/* Route pour la page Ajouter un utilisateur */}
       <Route
         path="/utilisateurs/ajouter"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin"]}>
             <AjouterUtilisateurPage />
           </ProtectedRoute>
         }
       />
-
-      {/* Route pour la page Modifier un utilisateur */}
       <Route
-        path="/utilisateurs/:id" // Route dynamique avec un paramètre `id`
+        path="/utilisateurs/:id"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin"]}>
             <ModifierUtilisateurPage />
           </ProtectedRoute>
         }
       />
+
+      {/* Feuilles de pointage */}
       <Route
         path="/feuille-pointage"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
             <AgentListPage />
           </ProtectedRoute>
         }
@@ -95,15 +95,17 @@ const AppRoutes = () => {
       <Route
         path="/feuille-pointage/:matricule"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
             <AgentFeuilleDetail />
           </ProtectedRoute>
         }
       />
+
+      {/* Feuilles de présence */}
       <Route
         path="/feuille-presence"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
             <FeuillePresencePage />
           </ProtectedRoute>
         }
@@ -111,12 +113,32 @@ const AppRoutes = () => {
       <Route
         path="/feuille-presence/:matricule"
         element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
             <AgentPresenceDetail />
           </ProtectedRoute>
         }
       />
 
+      {/* Routes agent */}
+      <Route
+        path="/mes-feuilles-pointage/:matricule"
+        element={
+          <ProtectedRoute allowedRoles={["agent"]}>
+            <AgentFeuilleDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mes-feuilles-presence/:matricule"
+        element={
+          <ProtectedRoute allowedRoles={["agent"]}>
+            <AgentPresenceDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Redirection pour les routes inconnues */}
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
     </Routes>
   );
 };

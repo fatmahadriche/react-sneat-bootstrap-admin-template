@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -49,6 +49,32 @@ const CalendarDashboard = () => {
         calendarRef.current.getApi().changeView(view);
     };
 
+    const EventItem = ({ event }) => (
+        <div className="event-card" style={{ borderLeft: `4px solid ${event.color}` }}>
+            <div className="event-time">
+                {new Date(event.start).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}
+            </div>
+            <div className="event-details">
+                <h4>{event.title}</h4>
+                {event.extendedProps?.location && (
+                    <p className="event-location">
+                        <i className="bx bx-map"></i> {event.extendedProps.location}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderEventContent = (eventInfo) => (
+        <div className="fc-event-content">
+            <i className="bx bx-calendar-event"></i>
+            <div className="fc-event-title">{eventInfo.event.title}</div>
+        </div>
+    );
+
     return (
         <div className="calendar-wrapper">
             <div className="calendar-toolbar">
@@ -75,8 +101,7 @@ const CalendarDashboard = () => {
                     {['dayGridMonth', 'timeGridWeek', 'timeGridDay'].map(view => (
                         <button
                             key={view}
-                            className={`view-button ${calendarRef.current?.getApi().view.type === view ? 'active' : ''
-                                }`}
+                            className={`view-button ${calendarRef.current?.getApi().view.type === view ? 'active' : ''}`}
                             onClick={() => handleViewChange(view)}
                         >
                             {view.replace(/[A-Z]/g, ' $&').replace('Grid', '').trim()}
@@ -117,32 +142,5 @@ const CalendarDashboard = () => {
         </div>
     );
 };
-
-
-const EventItem = ({ event }) => (
-    <div className="event-card" style={{ borderLeft: `4px solid ${event.color}` }}>
-        <div className="event-time">
-            {new Date(event.start).toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit'
-            })}
-        </div>
-        <div className="event-details">
-            <h4>{event.title}</h4>
-            {event.extendedProps?.location && (
-                <p className="event-location">
-                    <i className="bx bx-map"></i> {event.extendedProps.location}
-                </p>
-            )}
-        </div>
-    </div>
-);
-
-const renderEventContent = (eventInfo) => (
-    <div className="fc-event-content">
-        <i className="bx bx-calendar-event"></i>
-        <div className="fc-event-title">{eventInfo.event.title}</div>
-    </div>
-);
 
 export default CalendarDashboard;

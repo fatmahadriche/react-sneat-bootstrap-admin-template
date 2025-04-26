@@ -45,13 +45,12 @@ export const LoginPage = () => {
                 password,
             });
 
-            if (!['admin'].includes(res.data.role.toLowerCase())) {
+            if (!['admin', 'gestionnaire', 'agent'].includes(res.data.role.toLowerCase())) {
                 throw new Error("Accès non autorisé");
             }
 
             login(res.data.token, res.data.role, res.data.matricule);
-            navigate('/admin/dashboard');
-
+            navigate(`/${res.data.role.toLowerCase()}/dashboard`);
         } catch (err) {
             if (err.response?.status === 401) {
                 setError("Identifiants incorrects");

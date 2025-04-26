@@ -29,7 +29,6 @@ const DashboardPage = () => {
                     <h1>Calendrier Professionnel</h1>
                     <p>Gestion des événements et rendez-vous</p>
                 </div>
-                
             </div>
             <CalendarDashboard />
         </div>
