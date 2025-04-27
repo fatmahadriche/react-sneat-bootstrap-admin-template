@@ -27,34 +27,32 @@ const AgentFeuilleDetail = () => {
         sessionType: 'all'
     });
     const componentRef = useRef(null);
-
     const PER_PAGE = 4;
 
     const filteredPointages = useMemo(() => {
         if (!feuille) return [];
-
         return feuille.pointages.filter(pointage => {
             const datePointage = moment(pointage.date);
             let periodMatch = true;
-
             if (filters.periodType === 'day' && filters.selectedDate) {
                 periodMatch = datePointage.isSame(filters.selectedDate, 'day');
             } else if (filters.periodType === 'month' && filters.selectedDate) {
                 periodMatch = datePointage.isSame(filters.selectedDate, 'month');
             }
-
             let sessionMatch = true;
-            if (filters.sessionType !== 'all') {
-                const matinTime = moment(pointage.matin, 'HH:mm');
-                const apresMidiTime = moment(pointage.apres_midi, 'HH:mm');
-
+            if (filters.sessionType !== 'all' && feuille.date_debut_emploi && feuille.date_fin_emploi) {
+                const debutEmploi = moment(feuille.date_debut_emploi.split(' ')[1], 'HH:mm');
+                const finEmploi = moment(feuille.date_fin_emploi.split(' ')[1], 'HH:mm');
                 if (filters.sessionType === 'normal') {
-                    sessionMatch = matinTime.hours() >= 8 && apresMidiTime.hours() <= 17;
+                    sessionMatch =
+                        debutEmploi.hours() === 8 &&
+                        finEmploi.hours() === 17;
                 } else if (filters.sessionType === 'unique') {
-                    sessionMatch = matinTime.hours() >= 6 && apresMidiTime.hours() <= 13;
+                    sessionMatch =
+                        debutEmploi.hours() === 6 &&
+                        finEmploi.hours() === 14;
                 }
             }
-
             return periodMatch && sessionMatch;
         });
     }, [feuille, filters]);
@@ -71,11 +69,8 @@ const AgentFeuilleDetail = () => {
                         'Authorization': `Bearer ${user.token}`
                     }
                 });
-
                 if (!res.ok) throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-
                 const data = await res.json();
-
                 if (data.length > 0) {
                     const feuilleData = data[0];
                     setFeuille({
@@ -93,7 +88,6 @@ const AgentFeuilleDetail = () => {
                         absences: feuilleData.absences?.map(a => typeof a === 'object' ? a.type : a) || [],
                         remarques: feuilleData.remarques || ''
                     });
-
                 } else {
                     setFeuille(null);
                 }
@@ -106,7 +100,6 @@ const AgentFeuilleDetail = () => {
                 setLoading(false);
             }
         };
-
         if (user?.token) fetchData();
     }, [user?.token, matricule]);
 
@@ -141,13 +134,11 @@ const AgentFeuilleDetail = () => {
         setFormData(prev => {
             const currentValues = [...prev[type]];
             const index = currentValues.indexOf(value);
-
             if (index === -1) {
                 currentValues.push(value);
             } else {
                 currentValues.splice(index, 1);
             }
-
             return { ...prev, [type]: currentValues };
         });
     };
@@ -162,13 +153,10 @@ const AgentFeuilleDetail = () => {
                 },
                 body: JSON.stringify(formData)
             });
-
             if (!response.ok) throw new Error('Échec de la mise à jour');
-
             const result = await response.json();
             setFeuille(prev => ({ ...prev, ...formData }));
             setIsEditing(false);
-
             Swal.fire('Succès!', 'Modifications enregistrées avec succès', 'success');
         } catch (error) {
             Swal.fire('Erreur!', error.message, 'error');
@@ -248,21 +236,11 @@ const AgentFeuilleDetail = () => {
                     </div>
                 </div>
                 <div>
-                    <Link to="/feuille-pointage" className="btn btn-outline-secondary me-2">
+                    <Link to="/feuille-pointage" className="btn btn-outline-secondary">
                         <i className="bx bx-arrow-back me-1"></i> Retour
                     </Link>
-                    {!isEditing ? (
-                        <button className="btn btn-warning" onClick={() => setIsEditing(true)}>
-                            <i className="bx bx-edit me-1"></i> Modifier
-                        </button>
-                    ) : (
-                        <button className="btn btn-success" onClick={handleSubmit}>
-                            <i className="bx bx-save me-1"></i> Enregistrer
-                        </button>
-                    )}
                 </div>
             </div>
-
             <div className="card-body">
                 <div ref={componentRef}>
                     <div className="card mb-4 border-primary">
@@ -273,7 +251,7 @@ const AgentFeuilleDetail = () => {
                             </h6>
                         </div>
                         <div className="card-body">
-                            <div className="row g-3">
+                            <div className="row g-3 align-items-end">
                                 <div className="col-md-4">
                                     <label className="form-label fw-bold">Période</label>
                                     <div className="input-group">
@@ -299,7 +277,6 @@ const AgentFeuilleDetail = () => {
                                         )}
                                     </div>
                                 </div>
-
                                 <div className="col-md-4">
                                     <label className="form-label fw-bold">Type de séance</label>
                                     <select
@@ -309,11 +286,10 @@ const AgentFeuilleDetail = () => {
                                     >
                                         <option value="all">Toutes les séances</option>
                                         <option value="normal">Temps normal (8h-17h)</option>
-                                        <option value="unique">Séance unique (6h-13h)</option>
+                                        <option value="unique">Séance unique (6h-14h)</option>
                                     </select>
                                 </div>
-
-                                <div className="col-md-4 d-flex align-items-end">
+                                <div className="col-md-4">
                                     <button
                                         className="btn btn-outline-primary w-100"
                                         onClick={resetFilters}
@@ -326,7 +302,6 @@ const AgentFeuilleDetail = () => {
                             </div>
                         </div>
                     </div>
-
                     <div className="mb-4">
                         <h6 className="p-3 mb-3 bg-light border-bottom">
                             <i className="bx bx-time me-2 text-muted"></i>
@@ -344,7 +319,6 @@ const AgentFeuilleDetail = () => {
                                     Affichage {offset + 1}-{Math.min(offset + PER_PAGE, filteredPointages.length)}
                                     sur {filteredPointages.length} résultats
                                 </div>
-
                                 <div className="table-responsive">
                                     <table className="table table-bordered table-hover">
                                         <thead className="table-primary">
@@ -366,20 +340,29 @@ const AgentFeuilleDetail = () => {
                                                     <td className="text-success fw-bold">{pointage.matin}</td>
                                                     <td className="text-danger fw-bold">{pointage.apres_midi}</td>
                                                     <td className="no-print">
-                                                        <button
-                                                            className="btn btn-sm btn-outline-warning"
-                                                            onClick={() => setIsEditing(!isEditing)}
-                                                            title="Modifier"
-                                                        >
-                                                            <i className="bx bx-edit"></i>
-                                                        </button>
+                                                        {!isEditing ? (
+                                                            <button
+                                                                className="btn btn-sm btn-warning me-2"
+                                                                onClick={() => setIsEditing(true)}
+                                                                title="Modifier"
+                                                            >
+                                                                <i className="bx bx-edit"></i> Modifier
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                className="btn btn-sm btn-success"
+                                                                onClick={handleSubmit}
+                                                                title="Enregistrer"
+                                                            >
+                                                                <i className="bx bx-save"></i> Enregistrer
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
-
                                 {pageCount > 1 && (
                                     <div className="d-flex justify-content-center mt-3">
                                         <ReactPaginate
@@ -407,7 +390,6 @@ const AgentFeuilleDetail = () => {
                             </>
                         )}
                     </div>
-
                     <div className="mb-4">
                         <h6 className="p-3 mb-3 bg-light border-bottom">
                             <i className="bx bx-money me-2 text-muted"></i>
@@ -451,7 +433,6 @@ const AgentFeuilleDetail = () => {
                             </div>
                         )}
                     </div>
-
                     <div className="mb-4">
                         <h6 className="p-3 mb-3 bg-light border-bottom">
                             <i className="bx bx-calendar-minus me-2 text-muted"></i>
@@ -495,7 +476,6 @@ const AgentFeuilleDetail = () => {
                             </div>
                         )}
                     </div>
-
                     <div className="mb-4">
                         <h6 className="p-3 mb-3 bg-light border-bottom">
                             <i className="bx bx-comment me-2 text-muted"></i>

@@ -26,105 +26,133 @@ const AgentPresenceDetail = () => {
     const componentRef = useRef(null);
 
     const PER_PAGE = 4;
-
-    const allPresences = useMemo(() => {
-        return feuilles.flatMap(feuille => feuille.presences || []);
-    }, [feuilles]);
+    
+    // Calculs de pagination
+    const pageCount = Math.ceil(feuilles.flatMap(f => f.historique).length / PER_PAGE);
+    const offset = currentPage * PER_PAGE;
+    const currentPresences = feuilles.flatMap(f => f.historique).slice(offset, offset + PER_PAGE);
 
     const filteredPresences = useMemo(() => {
-        return allPresences.filter(presence => {
-            const datePresence = moment(presence.date);
-            let periodMatch = true;
-            
-            // Filtre par période
-            if (filters.periodType === 'day' && filters.selectedDate) {
-                periodMatch = datePresence.isSame(filters.selectedDate, 'day');
-            } else if (filters.periodType === 'month' && filters.selectedDate) {
-                periodMatch = datePresence.isSame(filters.selectedDate, 'month');
-            } else if (filters.periodType === 'custom' && filters.periode_debut && filters.periode_fin) {
-                periodMatch = datePresence.isBetween(
-                    moment(filters.periode_debut),
-                    moment(filters.periode_fin),
-                    'day',
-                    '[]'
-                );
-            }
-            
-            // Filtre par type de séance
-            let sessionMatch = true;
-            if (filters.sessionType !== 'all') {
-                const presenceTime = moment(presence.date);
-                const hour = presenceTime.hours();
-                
-                if (filters.sessionType === 'normal') {
-                    sessionMatch = hour >= 8 && hour <= 17;
-                } else if (filters.sessionType === 'unique') {
-                    sessionMatch = hour >= 6 && hour <= 13;
-                }
-            }
-            
-            return periodMatch && sessionMatch;
-        });
-    }, [allPresences, filters]);
+        return feuilles.flatMap(feuille => feuille.historique || [])
+            .filter(presence => {
+                const datePresence = moment.utc(presence.date);
+                let periodMatch = true;
 
-    const pageCount = Math.ceil(filteredPresences.length / PER_PAGE);
-    const offset = currentPage * PER_PAGE;
-    const currentPresences = filteredPresences.slice(offset, offset + PER_PAGE);
+                // Filtrage par période
+                switch(filters.periodType) {
+                    case 'day':
+                        if(filters.selectedDate) {
+                            periodMatch = datePresence.isSame(moment.utc(filters.selectedDate), 'day');
+                        }
+                        break;
+                    case 'month':
+                        if(filters.selectedDate) {
+                            periodMatch = datePresence.isSame(moment.utc(filters.selectedDate), 'month');
+                        }
+                        break;
+                    case 'custom':
+                        if(filters.periode_debut && filters.periode_fin) {
+                            const start = moment.utc(filters.periode_debut).startOf('day');
+                            const end = moment.utc(filters.periode_fin).endOf('day');
+                            periodMatch = datePresence.isBetween(start, end, null, '[]');
+                        }
+                        break;
+                    default:
+                        periodMatch = true;
+                }
+
+                // Filtrage par session
+                let sessionMatch = true;
+                if(filters.sessionType !== 'all' && presence.heures) {
+                    sessionMatch = presence.heures.some(heure => {
+                        const [h, m] = heure.split(':').map(Number);
+                        const totalMinutes = h * 60 + m;
+                        
+                        return filters.sessionType === 'normal' ? 
+                            (totalMinutes >= 480 && totalMinutes <= 1020) : 
+                            (totalMinutes >= 360 && totalMinutes <= 780);
+                    });
+                }
+
+                return periodMatch && sessionMatch;
+            })
+            .sort((a, b) => moment.utc(b.date).diff(moment.utc(a.date)));
+    }, [feuilles, filters]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                let url = `http://localhost:5000/api/presences/${matricule}`;
-                
-                if (filters.periode_debut && filters.periode_fin) {
-                    url += `?periode_debut=${moment(filters.periode_debut).format('YYYY-MM-DD')}&periode_fin=${moment(filters.periode_fin).format('YYYY-MM-DD')}`;
+                setLoading(true);
+                const params = new URLSearchParams();
+                let periodeDebut, periodeFin;
+
+                switch(filters.periodType) {
+                    case 'day':
+                        if(filters.selectedDate) {
+                            periodeDebut = moment.utc(filters.selectedDate).format('YYYY-MM-DD');
+                            periodeFin = periodeDebut;
+                        }
+                        break;
+                    case 'month':
+                        if(filters.selectedDate) {
+                            periodeDebut = moment.utc(filters.selectedDate).startOf('month').format('YYYY-MM-DD');
+                            periodeFin = moment.utc(filters.selectedDate).endOf('month').format('YYYY-MM-DD');
+                        }
+                        break;
+                    case 'custom':
+                        if(filters.periode_debut && filters.periode_fin) {
+                            periodeDebut = moment.utc(filters.periode_debut).format('YYYY-MM-DD');
+                            periodeFin = moment.utc(filters.periode_fin).format('YYYY-MM-DD');
+                        }
+                        break;
                 }
 
-                const res = await fetch(url, {
+                if(periodeDebut && periodeFin) {
+                    params.append('periode_debut', periodeDebut);
+                    params.append('periode_fin', periodeFin);
+                }
+
+                const res = await fetch(`http://localhost:5000/api/presences/${matricule}?${params.toString()}`, {
                     headers: {
                         'Authorization': `Bearer ${user.token}`,
                         'Content-Type': 'application/json'
                     }
                 });
-                
-                if (!res.ok) throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+
+                if(!res.ok) throw new Error(await res.text());
                 
                 const data = await res.json();
-                setFeuilles(data);
-                setError(null);
+                setFeuilles(data.map(f => ({
+                    ...f,
+                    historique: f.historique?.sort((a, b) => 
+                        moment.utc(a.date).diff(moment.utc(b.date)))
+                })));
+                
             } catch (err) {
-                console.error('Erreur:', err);
                 setError(err.message);
-                setFeuilles([]);
             } finally {
                 setLoading(false);
             }
         };
         
-        if (user?.token) fetchData();
-    }, [user?.token, matricule, filters.periode_debut, filters.periode_fin]);
-
-    const handlePageClick = ({ selected }) => {
-        setCurrentPage(selected);
-    };
+        if(user?.token) fetchData();
+    }, [user?.token, matricule, filters]);
 
     const handlePrint = useReactToPrint({
         content: () => componentRef.current,
         documentTitle: `Feuille_presence_${matricule}_${moment().format('YYYY-MM-DD')}`,
         pageStyle: `
-          @page { size: A4 landscape; margin: 10mm; }
-          @media print {
-            body { -webkit-print-color-adjust: exact; }
-            .no-print { display: none !important; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; }
-            .section-title { background-color: #f2f2f2; }
-          }
+            @page { size: A4 landscape; margin: 10mm; }
+            @media print {
+                body { -webkit-print-color-adjust: exact; }
+                .no-print { display: none !important; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ddd; padding: 8px; }
+                .section-title { background-color: #f2f2f2; }
+            }
         `,
-        onPrintError: () => {
-          Swal.fire('Erreur', 'Échec de l\'impression', 'error');
-        }
-      });
+        onPrintError: () => Swal.fire('Error', 'Print failed', 'error')
+    });
 
     const handleFilterChange = (name, value) => {
         setFilters(prev => ({
@@ -152,86 +180,43 @@ const AgentPresenceDetail = () => {
 
     const getTypePresence = (type) => {
         switch(type) {
-            case 'ENTREEMATIN': return 'Entrée matin';
-            case 'ENTREEMIDI': return 'Entrée midi';
-            case 'SORTIEMATIN': return 'Sortie matin';
-            case 'SORTIEMIDI': return 'Sortie midi';
+            case 'ENTREEMATIN': return 'Matin';
+            case 'ENTREEMIDI': return 'Midi';
             default: return type;
         }
     };
 
-    const handleDeletePresence = async (presenceId) => {
-        try {
-            const result = await Swal.fire({
-                title: 'Êtes-vous sûr?',
-                text: "Vous ne pourrez pas annuler cette suppression!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Oui, supprimer!',
-                cancelButtonText: 'Annuler'
-            });
-            
-            if (result.isConfirmed) {
-                const response = await fetch(`http://localhost:5000/api/presences/${matricule}/${presenceId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${user.token}`
-                    }
-                });
-                
-                if (!response.ok) throw new Error('Échec de la suppression');
-                
-                setFeuilles(prev => prev.map(feuille => ({
-                    ...feuille,
-                    presences: feuille.presences.filter(p => p._id !== presenceId)
-                })));
-                
-                Swal.fire('Supprimé!', 'La présence a été supprimée.', 'success');
-            }
-        } catch (error) {
-            Swal.fire('Erreur!', error.message, 'error');
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="d-flex justify-content-center p-3">
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Chargement...</span>
-                </div>
+    if(loading) return (
+        <div className="d-flex justify-content-center p-3">
+            <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
             </div>
-        );
-    }
+        </div>
+    );
 
-    if (error) {
-        return (
-            <div className="alert alert-danger m-3">
-                <i className="bx bx-error-circle me-2"></i>
-                Erreur lors du chargement des données: {error}
-                <div className="mt-2">
-                    <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
-                        <i className="bx bx-arrow-back me-1"></i> Retour
-                    </button>
-                </div>
+    if(error) return (
+        <div className="alert alert-danger m-3">
+            <i className="bx bx-error-circle me-2"></i>
+            Load error: {error}
+            <div className="mt-2">
+                <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
+                    <i className="bx bx-arrow-back me-1"></i> Back
+                </button>
             </div>
-        );
-    }
+        </div>
+    );
 
-    if (feuilles.length === 0) {
-        return (
-            <div className="alert alert-warning m-3">
-                <i className="bx bx-info-circle me-2"></i>
-                Aucune donnée trouvée pour le matricule {matricule}
-                <div className="mt-2">
-                    <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
-                        <i className="bx bx-arrow-back me-1"></i> Retour
-                    </button>
-                </div>
+    if(feuilles.length === 0) return (
+        <div className="alert alert-warning m-3">
+            <i className="bx bx-info-circle me-2"></i>
+            No data found for {matricule}
+            <div className="mt-2">
+                <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
+                    <i className="bx bx-arrow-back me-1"></i> Back
+                </button>
             </div>
-        );
-    }
+        </div>
+    );
 
     return (
         <div className="card border-0 shadow-sm">
@@ -239,7 +224,7 @@ const AgentPresenceDetail = () => {
                 <div>
                     <h5 className="mb-0 fw-bold text-dark">
                         <i className="bx bx-calendar-check me-2 text-primary"></i>
-                        FICHE DE PRESENCES
+                        ATTENDANCE RECORD
                     </h5>
                     <div className="d-flex align-items-center mt-2">
                         <span className="badge bg-light text-dark me-2 border">
@@ -248,16 +233,16 @@ const AgentPresenceDetail = () => {
                         </span>
                         <span className="badge bg-light text-dark border">
                             <i className="bx bx-id-card me-1 text-muted"></i>
-                            Matricule: {matricule}
+                            ID: {matricule}
                         </span>
                     </div>
                 </div>
                 <div>
                     <button onClick={handlePrint} className="btn btn-outline-primary me-2">
-                        <i className="bx bx-printer me-1"></i> Imprimer
+                        <i className="bx bx-printer me-1"></i> Print
                     </button>
                     <button onClick={() => navigate(-1)} className="btn btn-outline-secondary">
-                        <i className="bx bx-arrow-back me-1"></i> Retour
+                        <i className="bx bx-arrow-back me-1"></i> Back
                     </button>
                 </div>
             </div>
@@ -268,48 +253,50 @@ const AgentPresenceDetail = () => {
                         <div className="card-header bg-light">
                             <h6 className="mb-0 text-primary">
                                 <i className="bx bx-filter-alt me-2"></i>
-                                FILTRES
+                                FILTERS
                             </h6>
                         </div>
                         <div className="card-body">
                             <div className="row g-3">
                                 <div className="col-md-3">
-                                    <label className="form-label fw-bold">Période</label>
+                                    <label className="form-label fw-bold">Period</label>
                                     <select 
                                         className="form-select"
                                         value={filters.periodType}
                                         onChange={(e) => handleFilterChange('periodType', e.target.value)}
                                     >
-                                        <option value="none">Aucun filtre</option>
-                                        <option value="day">Par jour</option>
-                                        <option value="month">Par mois</option>
-                                        <option value="custom">Période personnalisée</option>
+                                        <option value="none">No filter</option>
+                                        <option value="day">Day</option>
+                                        <option value="month">Month</option>
+                                        <option value="custom">Custom range</option>
                                     </select>
                                 </div>
 
                                 {filters.periodType === 'day' && (
                                     <div className="col-md-3">
-                                        <label className="form-label fw-bold">Date spécifique</label>
+                                        <label className="form-label fw-bold">Specific date</label>
                                         <DatePicker
                                             selected={filters.selectedDate}
                                             onChange={(date) => handleFilterChange('selectedDate', date)}
                                             className="form-control"
                                             dateFormat="dd/MM/yyyy"
-                                            placeholderText="Sélectionner une date"
+                                            placeholderText="Select date"
+                                            isClearable
                                         />
                                     </div>
                                 )}
 
                                 {filters.periodType === 'month' && (
                                     <div className="col-md-3">
-                                        <label className="form-label fw-bold">Mois</label>
+                                        <label className="form-label fw-bold">Month</label>
                                         <DatePicker
                                             selected={filters.selectedDate}
                                             onChange={(date) => handleFilterChange('selectedDate', date)}
                                             className="form-control"
                                             dateFormat="MM/yyyy"
                                             showMonthYearPicker
-                                            placeholderText="Sélectionner un mois"
+                                            placeholderText="Select month"
+                                            isClearable
                                         />
                                     </div>
                                 )}
@@ -317,39 +304,41 @@ const AgentPresenceDetail = () => {
                                 {filters.periodType === 'custom' && (
                                     <>
                                         <div className="col-md-3">
-                                            <label className="form-label fw-bold">Date de début</label>
+                                            <label className="form-label fw-bold">Start date</label>
                                             <DatePicker
                                                 selected={filters.periode_debut}
                                                 onChange={(date) => handleFilterChange('periode_debut', date)}
                                                 className="form-control"
                                                 dateFormat="dd/MM/yyyy"
-                                                placeholderText="Date de début"
+                                                placeholderText="Start date"
+                                                isClearable
                                             />
                                         </div>
                                         <div className="col-md-3">
-                                            <label className="form-label fw-bold">Date de fin</label>
+                                            <label className="form-label fw-bold">End date</label>
                                             <DatePicker
                                                 selected={filters.periode_fin}
                                                 onChange={(date) => handleFilterChange('periode_fin', date)}
                                                 className="form-control"
                                                 dateFormat="dd/MM/yyyy"
-                                                placeholderText="Date de fin"
+                                                placeholderText="End date"
                                                 minDate={filters.periode_debut}
+                                                isClearable
                                             />
                                         </div>
                                     </>
                                 )}
 
                                 <div className="col-md-3">
-                                    <label className="form-label fw-bold">Type de séance</label>
+                                    <label className="form-label fw-bold">Session type</label>
                                     <select
                                         className="form-select"
                                         value={filters.sessionType}
                                         onChange={(e) => handleFilterChange('sessionType', e.target.value)}
                                     >
-                                        <option value="all">Toutes les séances</option>
-                                        <option value="normal">Temps normal (8h-17h)</option>
-                                        <option value="unique">Séance unique (6h-13h)</option>
+                                        <option value="all">All sessions</option>
+                                        <option value="normal">Normal hours (8AM-5PM)</option>
+                                        <option value="unique">Special session (6AM-1PM)</option>
                                     </select>
                                 </div>
 
@@ -360,7 +349,7 @@ const AgentPresenceDetail = () => {
                                         disabled={filters.periodType === 'none' && filters.sessionType === 'all'}
                                     >
                                         <i className="bx bx-reset me-2"></i>
-                                        Réinitialiser
+                                        Reset
                                     </button>
                                 </div>
                             </div>
@@ -370,19 +359,19 @@ const AgentPresenceDetail = () => {
                     <div className="mb-4">
                         <h6 className="p-3 mb-3 bg-light border-bottom">
                             <i className="bx bx-time me-2 text-muted"></i>
-                            HISTORIQUE DES POINTAGES
+                            ATTENDANCE HISTORY
                         </h6>
                         {filteredPresences.length === 0 ? (
                             <div className="alert alert-info mb-4">
                                 <i className="bx bx-info-circle me-2"></i>
-                                Aucune présence ne correspond aux critères de filtrage
+                                No entries matching filters
                             </div>
                         ) : (
                             <>
                                 <div className="mb-3 text-muted small">
                                     <i className="bx bx-show me-1"></i>
-                                    Affichage {offset + 1}-{Math.min(offset + PER_PAGE, filteredPresences.length)} 
-                                    sur {filteredPresences.length} enregistrements
+                                    Showing {offset + 1}-{Math.min(offset + PER_PAGE, filteredPresences.length)} 
+                                    of {filteredPresences.length} entries
                                 </div>
                                 
                                 <div className="table-responsive">
@@ -390,31 +379,33 @@ const AgentPresenceDetail = () => {
                                         <thead className="table-primary">
                                             <tr>
                                                 <th className="text-nowrap">Date</th>
-                                                <th className="text-nowrap">Heure</th>
+                                                <th className="text-nowrap">Time</th>
                                                 <th className="text-nowrap">Type</th>
                                                 <th className="no-print text-nowrap">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {currentPresences.map((presence, index) => {
-                                                const date = moment(presence.date);
+                                                const date = moment.utc(presence.date);
+                                                const times = presence.heures?.map(h => h.substring(0, 5)).join(' → ') || '--:--';
+                                                
                                                 return (
                                                     <tr key={index}>
                                                         <td className="fw-bold">{date.format('DD/MM/YYYY')}</td>
-                                                        <td className="fw-bold">{date.format('HH:mm')}</td>
+                                                        <td className="fw-bold">{times}</td>
                                                         <td>
                                                             <span className={`badge ${
-                                                                presence.type.includes('ENTREE') ? 'bg-success' : 
-                                                                presence.type.includes('SORTIE') ? 'bg-warning text-dark' : 'bg-secondary'
+                                                                presence.type_pointage === 'ENTREEMATIN' ? 'bg-success' : 
+                                                                'bg-primary'
                                                             }`}>
-                                                                {getTypePresence(presence.type)}
+                                                                {getTypePresence(presence.type_pointage)}
                                                             </span>
                                                         </td>
                                                         <td className="no-print">
                                                             <button 
                                                                 className="btn btn-sm btn-outline-danger"
                                                                 onClick={() => handleDeletePresence(presence._id)}
-                                                                title="Supprimer"
+                                                                title="Delete"
                                                             >
                                                                 <i className="bx bx-trash"></i>
                                                             </button>
@@ -432,7 +423,8 @@ const AgentPresenceDetail = () => {
                                             previousLabel={<i className="bx bx-chevron-left"></i>}
                                             nextLabel={<i className="bx bx-chevron-right"></i>}
                                             pageCount={pageCount}
-                                            onPageChange={handlePageClick}
+                                            onPageChange={({ selected }) => setCurrentPage(selected)}
+                                            forcePage={currentPage}
                                             containerClassName="pagination mb-0"
                                             activeClassName="active"
                                             pageClassName="page-item"

@@ -14,7 +14,7 @@
   },
   {
     "header": "GESTION",
-    "roles": ["admin"],
+    "roles": ["admin","gestionnaire","agent"],
     "items": [
       {
         "text": "Utilisateurs",
