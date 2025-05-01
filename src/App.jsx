@@ -1,30 +1,25 @@
-import { useLocation } from "react-router-dom";// Importez le AuthProvider
-import Layout from "./layouts/Layout";
-import AppRoutes from "./router/AppRoutes";
-import { Blank } from "./layouts/Blank";
-import { AuthProvider } from "./context/authContext";
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/authContext';
+import AppRoutes from './router/AppRoutes';
+import Loader from './components/Loader';
 
 function App() {
+  const { user, loading } = useAuth();
   const location = useLocation();
-  const isAuthPath = location.pathname.includes("auth") ||
-    location.pathname.includes("error") ||
-    location.pathname.includes("under-maintenance") ||
-    location.pathname.includes("blank");
+  const navigate = useNavigate();
 
-  return (
-     <AuthProvider>{/* Ajoutez le AuthProvider ici */}
-      {isAuthPath ? (
-        <Blank>
-          <AppRoutes />
-        </Blank>
-      ) : (
-        <Layout>
-          <AppRoutes />
-        </Layout>
-      )}
-      </AuthProvider> 
-      
-  );
+  useEffect(() => {
+    if (!loading && !user && !location.pathname.startsWith('/auth')) {
+      navigate('/auth/login');
+    }
+  }, [user, loading, location, navigate]);
+
+  if (loading) {
+    return <Loader />;
+  }
+
+  return <AppRoutes />;
 }
 
 export default App;

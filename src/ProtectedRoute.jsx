@@ -1,20 +1,22 @@
-// src/components/ProtectedRoute.jsx
-import { useEffect } from "react";
-import { useAuth } from "./context/authContext";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from 'react';
+import { useAuth } from './context/authContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    if (!user || !allowedRoles.map(r => r.toLowerCase()).includes(user.role)) {
+    if (!loading && !user) {
+      navigate('/auth/login', { state: { from: location }, replace: true });
+    } else if (user && !allowedRoles.includes(user.role?.toLowerCase())) {
       navigate('/unauthorized', { replace: true });
     }
-  }, [user, allowedRoles, navigate]);
+  }, [user, loading, allowedRoles, navigate, location]);
 
-  if (!user || !allowedRoles.includes(user.role.toLowerCase())) {
-    return null;
+  if (loading || !user || !allowedRoles.includes(user.role?.toLowerCase())) {
+    return <Loader />;
   }
 
   return children;

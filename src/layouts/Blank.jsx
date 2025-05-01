@@ -1,10 +1,11 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React from 'react';
 
-export const Blank = ({ children }) => {
-    return (
-        <div className="blank-layout">
-            {children}
-        </div>
-    )
-}
+const Blank = ({ children }) => {
+  return (
+    <div className="blank-layout">
+      {children}
+    </div>
+  );
+};
+
+export default Blank; // Modifiez l'export
