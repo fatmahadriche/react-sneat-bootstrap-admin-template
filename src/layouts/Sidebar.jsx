@@ -13,7 +13,6 @@ const Sidebar = () => {
       .replace(/:matricule/gi, user.matricule || '');
   };
 
-  // Nouvelle fonction de filtration récursive
   const filterMenuItems = (items) => {
     return items
       .filter(item => item.roles.map(r => r.toLowerCase()).includes(user?.role?.toLowerCase()))
@@ -31,43 +30,76 @@ const Sidebar = () => {
       items: filterMenuItems(section.items)
     }));
 
-
   return (
     <aside id="layout-menu" className="layout-menu menu-vertical menu bg-menu-theme">
-      <div className="app-brand demo">
-        <span className="app-brand-link" style={{ cursor: 'default' }}>
-          <span className="app-brand-logo demo">
-            <img
-              src="/assets/img/STEG.jpg"
-              alt="STEG logo"
-              aria-label="STEG logo image"
-              style={{ width: 'auto', height: '40px' }}
-            />
+      {/* Header fixe */}
+      <div className="menu-header-container">
+        <div className="app-brand demo">
+          <span className="app-brand-link" style={{ cursor: 'default' }}>
+            <span className="app-brand-logo demo">
+              <img
+                src="/assets/img/STEG.jpg"
+                alt="STEG logo"
+                aria-label="STEG logo image"
+                style={{ width: 'auto', height: '40px' }}
+              />
+            </span>
+            <span className="app-brand-text demo menu-text fw-bold ms-2" style={{ textTransform: 'uppercase' }}>
+              STEG
+            </span>
           </span>
-          <span className="app-brand-text demo menu-text fw-bold ms-2" style={{ textTransform: 'uppercase' }}>
-            STEG
-          </span>
-        </span>
-        <a href="#" className="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
-          <i className="bx bx-chevron-left bx-sm align-middle"></i>
-        </a>
+          <a href="#" className="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
+            <i className="bx bx-chevron-left bx-sm align-middle"></i>
+          </a>
+        </div>
+        <div className="menu-inner-shadow"></div>
       </div>
-      <div className="menu-inner-shadow"></div>
 
-      <ul className="menu-inner py-1">
-        {filteredMenu.map((section, index) => (
-          <React.Fragment key={`section-${index}`}>
-            {section.header && (
-              <li className="menu-header small text-uppercase">
-                <span className="menu-header-text">{section.header}</span>
-              </li>
-            )}
-            {section.items.map((item) => (
-              <MenuItem key={item.text} {...item} />
-            ))}
-          </React.Fragment>
-        ))}
-      </ul>
+      {/* Contenu scrollable */}
+      <div className="menu-container" style={{
+        height: 'calc(100vh - 70px)',
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      }}>
+        <ul className="menu-inner py-1">
+          {filteredMenu.map((section, index) => (
+            <React.Fragment key={`section-${index}`}>
+              {section.header && (
+                <li className="menu-header small text-uppercase">
+                  <span className="menu-header-text">{section.header}</span>
+                </li>
+              )}
+              {section.items.map((item) => (
+                <MenuItem key={item.text} {...item} />
+              ))}
+            </React.Fragment>
+          ))}
+        </ul>
+      </div>
+
+      {/* Style intégré pour la scrollbar */}
+      <style jsx>{`
+        .menu-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .menu-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .menu-container::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 10px;
+        }
+        .menu-container::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+        .layout-menu {
+          width: 260px;
+        }
+        .menu-container {
+          scrollbar-gutter: stable;
+        }
+      `}</style>
     </aside>
   );
 };
@@ -78,13 +110,11 @@ const MenuItem = (item) => {
   const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
   const hasSubmenu = item.submenu?.length > 0;
   
-  // Vérification de l'état actif
   const isActive = hasSubmenu 
     ? item.submenu.some(sub => sub.link === location.pathname)
     : location.pathname === item.link;
 
   useEffect(() => {
-    // Ouvre automatiquement le sous-menu si l'item est actif
     setIsSubmenuOpen(isActive);
   }, [location.pathname]);
 
@@ -124,7 +154,6 @@ const MenuItem = (item) => {
           {item.available === false && (
             <div className="badge bg-label-primary fs-tiny rounded-pill ms-auto">Pro</div>
           )}
-          
         </div>
       ) : (
         <NavLink

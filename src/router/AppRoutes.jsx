@@ -17,6 +17,9 @@ import Layout from "../layouts/Layout";
 import Blank from '../layouts/Blank';
 import DemandeCongePage from '../pages/Conges/DemandeCongePage';
 import ListeCongesPage from '../pages/Conges/ListeCongesPage';
+import HeuresSupplementairesPage from '../pages/heures-supplementaires/HeuresSupplementairesPage';
+import HeuresSupplementairesDetailPage from '../pages/heures-supplementaires/HeuresSupplementairesDetailPage';
+
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -50,7 +53,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-         <Route
+        <Route
           path="/account/notifications"
           element={
             <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
@@ -154,7 +157,24 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="/heures-supplementaires"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
+      <HeuresSupplementairesPage />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/heures-supplementaires/:userId"
+  element={
+    <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
+      <HeuresSupplementairesDetailPage />
+    </ProtectedRoute>
+  }
+/>
         
+
       </Route>
 
 

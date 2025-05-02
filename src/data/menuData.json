@@ -110,6 +110,28 @@
     ]
   },
   {
+    "header": "HEURES SUPPLÉMENTAIRES",
+    "roles": ["admin", "gestionnaire"],
+    "items": [
+      {
+        "text": "Gestion HS",
+        "icon": "bx bx-time-five",
+        "available": true,
+        "link": null,
+        "roles": ["admin", "gestionnaire"],
+        "submenu": [
+          {
+            "text": "Calcul des HS",
+            "icon": "bx bx-calculator",
+            "available": true,
+            "link": "/heures-supplementaires",
+            "roles": ["admin", "gestionnaire"]
+          }
+        ]
+      }
+    ]
+  },
+  {
     "header": "PARAMÈTRES",
     "roles": ["admin", "gestionnaire", "agent"],
     "items": [
