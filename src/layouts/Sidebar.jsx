@@ -7,7 +7,7 @@ const Sidebar = () => {
   const { user } = useAuth();
 
   const generateDynamicLink = (link) => {
-    if (!link || !user?.role) return '#';
+    if (!link || !user) return '#';
     return link
       .replace(/:role/gi, user.role.toLowerCase())
       .replace(/:matricule/gi, user.matricule || '');

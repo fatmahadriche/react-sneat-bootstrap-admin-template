@@ -36,7 +36,6 @@ const FeuillePresencePage = () => {
                     throw new Error(response.error?.message || 'Erreur de chargement des données');
                 }
 
-                // Correction clé ici : Vérifier la structure de la réponse
                 const rawData = Array.isArray(response) ? response : response.data || [];
                 const paginationData = response.pagination || {
                     page: 1,
@@ -88,12 +87,7 @@ const FeuillePresencePage = () => {
         return (
             <div className="alert alert-danger m-3">
                 <i className="bx bx-error-circle me-2"></i>
-                Load error: {error}
-                <div className="mt-2">
-                    <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
-                        <i className="bx bx-arrow-back me-1"></i> Back
-                    </button>
-                </div>
+                Erreur de chargement : {error}
             </div>
         );
     }
@@ -102,12 +96,9 @@ const FeuillePresencePage = () => {
         <div className="card border-0 shadow-sm">
             <div className="card-header d-flex justify-content-between align-items-center bg-white border-bottom">
                 <h5 className="mb-0 fw-bold text-dark">
-                    <i className="bx bx-list-ul me-2 text-primary"></i>
-                    AGENT LIST
+                    <i className="bx bx-list-check me-2 text-primary"></i>
+                    LISTE DES MOUVEMENTS
                 </h5>
-                <button onClick={() => navigate(-1)} className="btn btn-outline-secondary">
-                    <i className="bx bx-arrow-back me-1"></i> Back
-                </button>
             </div>
             
             <div className="card-body">
@@ -115,25 +106,32 @@ const FeuillePresencePage = () => {
                     <table className="table table-hover mb-0">
                         <thead className="table-light">
                             <tr>
-                                <th>ID</th>
-                                <th>Full Name</th>
-                                <th>Last Update</th>
-                                <th>Actions</th>
+                                <th style={{ backgroundColor: "#f8f9fa", color: "#0d6efd" }}>
+                                    <i className="bx bx-id-card me-1"></i>
+                                    Matricule
+                                </th>
+                                <th style={{ backgroundColor: "#f8f9fa"}}>
+                                    <i className="bx bx-user me-1"></i>
+                                    Nom Complet
+                                </th>
+                                <th style={{ backgroundColor: "#f8f9fa", color: "#6f42c1" }}>
+                                    <i className="bx bx-detail me-1"></i>
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             {agents.map(agent => (
                                 <tr key={agent._id}>
-                                    <td className="fw-bold">{agent.matricule}</td>
+                                    <td className="fw-bold text-primary">{agent.matricule}</td>
                                     <td>{agent.nom_complet}</td>
-                                    <td>{moment(agent.lastUpdate).format('DD/MM/YYYY HH:mm')}</td>
                                     <td>
                                         <Link 
                                             to={`/feuille-presence/${agent.matricule}`}
-                                            className="btn btn-sm btn-primary"
+                                            className="btn btn-sm btn-outline-primary"
                                         >
-                                            <i className="bx bx-calendar-check me-1"></i>
-                                            View
+                                            <i className="bx bx-show me-1"></i>
+                                            Détails
                                         </Link>
                                     </td>
                                 </tr>
@@ -170,7 +168,7 @@ const FeuillePresencePage = () => {
                 {agents.length === 0 && !loading && (
                     <div className="alert alert-info mt-3 mb-0">
                         <i className="bx bx-info-circle me-2"></i>
-                        No agents found in database
+                        Aucun mouvement trouvé dans la base de données
                     </div>
                 )}
             </div>

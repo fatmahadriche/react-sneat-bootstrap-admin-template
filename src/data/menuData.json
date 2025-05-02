@@ -75,6 +75,37 @@
             "roles": ["agent"]
           }
         ]
+
+        
+      }
+    ]
+  },
+  {
+    "header": "GESTION DES CONGÉS",
+    "roles": ["admin", "gestionnaire", "agent"],
+    "items": [
+      {
+        "text": "Congés",
+        "icon": "bx bx-calendar",
+        "roles": ["admin", "gestionnaire", "agent"],
+        "available": true,
+        "link": null,
+        "submenu": [
+          {
+            "text": "Demande de congés",
+            "icon": "bx bx-plus",
+            "available": true,
+            "link": "/demande-conge",
+            "roles": ["agent"]
+          },
+          {
+            "text": "Liste des congés",
+            "icon": "bx bx-list-ul",
+            "available": true,
+            "link": "/liste-conges",
+            "roles": ["admin", "gestionnaire", "agent"]
+          }
+        ]
       }
     ]
   },
@@ -101,7 +132,7 @@
             "icon": "bx bx-bell",
             "available": true,
             "link": "/account/notifications",
-            "roles": ["admin", "gestionnaire"]
+            "roles": ["admin", "gestionnaire","agent"]
           }
         ]
       },

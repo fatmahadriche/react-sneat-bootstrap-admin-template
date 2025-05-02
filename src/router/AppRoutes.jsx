@@ -1,7 +1,7 @@
 import { Outlet, Route, Routes, Navigate } from "react-router-dom";
 import { LoginPage } from "../pages/authentication/LoginPage";
 import { AccountPage } from "../pages/account/AccountPage";
-import { NotificationPage } from "../pages/account/NotificationPage";
+import NotificationPage from "../pages/account/NotificationPage";
 import ListeUtilisateursPage from "../pages/ListeUtilisateursPage";
 import DashboardPage from "../pages/DashboardPage";
 import { useAuth } from "../context/AuthContext";
@@ -10,11 +10,13 @@ import AjouterUtilisateurPage from "../pages/new/AjouterUtilisateurPage";
 import ModifierUtilisateurPage from "../pages/modification/ModifierUtilisateurPage";
 import AgentListPage from '../pages/feuille-pointage/AgentListPage';
 import AgentFeuilleDetail from '../pages/feuille-pointage/AgentFeuilleDetail';
+import AgentFeuillePointage from '../pages/feuille-pointage/AgentFeuillePointage';
 import FeuillePresencePage from '../pages/feuille-presence/FeuillePresencePage';
 import AgentPresenceDetail from '../pages/feuille-presence/AgentPresenceDetail';
 import Layout from "../layouts/Layout";
 import Blank from '../layouts/Blank';
-
+import DemandeCongePage from '../pages/Conges/DemandeCongePage';
+import ListeCongesPage from '../pages/Conges/ListeCongesPage';
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -30,8 +32,8 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedLayout />}>
         {/* Tableau de bord */}
-        <Route 
-          path="/:role/dashboard" 
+        <Route
+          path="/:role/dashboard"
           element={
             <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
               <DashboardPage />
@@ -48,10 +50,10 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
+         <Route
           path="/account/notifications"
           element={
-            <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
+            <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
               <NotificationPage />
             </ProtectedRoute>
           }
@@ -124,7 +126,7 @@ const AppRoutes = () => {
           path="/mes-feuilles-pointage/:matricule"
           element={
             <ProtectedRoute allowedRoles={["agent"]}>
-              <AgentFeuilleDetail />
+              <AgentFeuillePointage />
             </ProtectedRoute>
           }
         />
@@ -136,7 +138,26 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/demande-conge"
+          element={
+            <ProtectedRoute allowedRoles={["agent"]}>
+              <DemandeCongePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/liste-conges"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "gestionnaire", "agent"]}>
+              <ListeCongesPage />
+            </ProtectedRoute>
+          }
+        />
+        
       </Route>
+
+
     </Routes>
   );
 };

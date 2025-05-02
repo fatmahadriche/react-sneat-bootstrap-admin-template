@@ -38,20 +38,20 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-
+    
       try {
-        // Vérification côté serveur du token
-        const response = await api.get("/auth/verify");
-        const { role, ...userData } = response.data;
-        
-        // Mise à jour synchronisée des données
+        // Vérification du token ET récupération des données complètes
+        await api.get("/auth/verify");
+        const response = await api.get("/auth/me");
+        const userData = response.data;
+    
         setUser({
           token,
-          role: role.toLowerCase(),
-          ...userData
+          ...userData,
+          role: userData.role.toLowerCase()
         });
         
-        // Rafraîchissement du timeout de déconnexion
+        localStorage.setItem("userData", JSON.stringify(userData));
         resetLogoutTimer();
         
       } catch (error) {
@@ -77,9 +77,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("role", normalizedRole);
     localStorage.setItem("userData", JSON.stringify(userData));
     resetLogoutTimer();
-
-    setUser({ token, role: normalizedRole, ...userData });
-    navigate(`/${normalizedRole}/dashboard`); 
+  
+    setUser({ 
+      token, 
+      role: normalizedRole,
+      ...userData 
+    });
+    navigate(`/${normalizedRole}/dashboard`);
   };
 
   const logout = () => {

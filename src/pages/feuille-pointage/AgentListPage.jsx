@@ -22,6 +22,33 @@ const AgentListPage = () => {
     const pdfTableRef = useRef();
     const PER_PAGE = 10;
 
+    const getStatusBadgeStyle = (status) => {
+        switch (status) {
+            case 'Présent': return 'bg-success';
+            case 'Absent': return 'bg-danger';
+            case 'En congé': return 'bg-primary';
+            default: return 'bg-secondary';
+        }
+    };
+
+    const getPDFStatusStyle = (status) => {
+        const baseStyle = {
+            padding: '4px 8px',
+            borderRadius: '12px',
+            display: 'inline-block',
+            margin: '2px',
+            fontSize: '10px',
+            color: 'white'
+        };
+        
+        switch (status) {
+            case 'Présent': return { ...baseStyle, backgroundColor: '#28a745' };
+            case 'Absent': return { ...baseStyle, backgroundColor: '#dc3545' };
+            case 'En congé': return { ...baseStyle, backgroundColor: '#0d6efd' };
+            default: return { ...baseStyle, backgroundColor: '#6c757d' };
+        }
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -46,45 +73,58 @@ const AgentListPage = () => {
     }, [user?.token]);
 
     const allPointages = useMemo(() => {
-        return feuilles.flatMap(feuille =>
-            feuille.pointages.map(pointage => ({
+        return feuilles.flatMap(feuille => {
+            // Extraire les heures de la feuille principale
+            const heureDebut = feuille.date_debut_emploi?.split(' ')[1]?.substring(0, 5) || '08:00';
+            const heureFin = feuille.date_fin_emploi?.split(' ')[1]?.substring(0, 5) || '17:00';
+            
+            return feuille.pointages.map(pointage => ({
                 ...pointage,
                 matricule: feuille.matricule,
                 nom_complet: feuille.nom_complet,
-                date_debut_emploi: feuille.date_debut_emploi,
-                date_fin_emploi: feuille.date_fin_emploi,
+                heureDebut, // Ajout des heures de la feuille
+                heureFin,   // Ajout des heures de la feuille
                 primes: feuille.primes,
                 absences: feuille.absences,
                 remarques: feuille.remarques
-            }))
-        );
+            }));
+        });
     }, [feuilles]);
 
     const filteredPointages = useMemo(() => {
         return allPointages.filter(pointage => {
-            const datePointage = moment(pointage.date);
+            const datePointage = moment(pointage.date, 'YYYY-MM-DD');
             let periodMatch = true;
-            // Filtre par période
-            if (filters.periodType === 'day' && filters.selectedDate) {
-                periodMatch = datePointage.isSame(filters.selectedDate, 'day');
-            } else if (filters.periodType === 'month' && filters.selectedDate) {
-                periodMatch = datePointage.isSame(filters.selectedDate, 'month');
-            }
-            // Filtre par type de séance
-            let sessionMatch = true;
-            if (filters.sessionType !== 'all') {
-                const debutEmploi = moment(pointage.date_debut_emploi?.split(' ')[1], 'HH:mm');
-                const finEmploi = moment(pointage.date_fin_emploi?.split(' ')[1], 'HH:mm');
-                if (filters.sessionType === 'normal') {
-                    sessionMatch =
-                        debutEmploi.hours() === 8 &&
-                        finEmploi.hours() === 17;
-                } else if (filters.sessionType === 'unique') {
-                    sessionMatch =
-                        debutEmploi.hours() === 6 &&
-                        finEmploi.hours() === 14;
+            
+            // Filtrage par période
+            if (filters.periodType !== 'none' && filters.selectedDate) {
+                const filterDate = moment(filters.selectedDate).startOf(filters.periodType);
+                
+                if (filters.periodType === 'day') {
+                    periodMatch = datePointage.isSame(filterDate, 'day');
+                } else if (filters.periodType === 'month') {
+                    periodMatch = datePointage.isBetween(
+                        filterDate.startOf('month'),
+                        filterDate.endOf('month'),
+                        null,
+                        '[]'
+                    );
                 }
             }
+    
+            // Filtrage par type de séance
+            let sessionMatch = true;
+            if (filters.sessionType !== 'all') {
+                const debut = parseInt(pointage.heureDebut.split(':')[0]);
+                const fin = parseInt(pointage.heureFin.split(':')[0]);
+                
+                if (filters.sessionType === 'normal') {
+                    sessionMatch = debut === 8 && fin === 17;
+                } else if (filters.sessionType === 'unique') {
+                    sessionMatch = debut === 6 && fin === 14;
+                }
+            }
+    
             return periodMatch && sessionMatch;
         });
     }, [allPointages, filters]);
@@ -191,94 +231,59 @@ const AgentListPage = () => {
                     <i className="bx bx-download me-1"></i> Télécharger PDF
                 </button>
             </div>
-            {/* Tableau caché pour le PDF */}
+
             <div style={{ position: 'absolute', left: '-9999px' }}>
                 <div ref={pdfTableRef}>
-                    <h4 style={{
-                        textAlign: 'center',
-                        color: '#2c3e50',
-                        fontFamily: 'Arial, sans-serif',
-                        fontSize: '24px',
-                        marginBottom: '20px',
-                        padding: '10px'
-                    }}>
+                    <h4 style={{ textAlign: 'center', color: '#2c3e50', fontFamily: 'Arial, sans-serif', fontSize: '24px', marginBottom: '20px', padding: '10px' }}>
                         Feuille de Pointage {isFilterActive ? 'Filtrée' : 'Complète'}
                     </h4>
-                    <table style={{
-                        width: '100%',
-                        borderCollapse: 'collapse',
-                        fontFamily: 'Arial, sans-serif',
-                        fontSize: '12px'
-                    }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Arial, sans-serif', fontSize: '12px' }}>
                         <thead>
                             <tr>
-                                {['Matricule', 'Nom Complet', 'Date', 'Début', 'Fin', 'Matin', 'Après-midi', 'Primes', 'Absences', 'Remarques'].map((header, index) => (
-                                    <th key={index} style={{
-                                        backgroundColor: '#f8f9fa',
-                                        color: '#495057',
-                                        padding: '12px',
-                                        border: '1px solid #dee2e6',
-                                        textAlign: 'left',
-                                        fontWeight: 'bold'
-                                    }}>
+                                {['Matricule', 'Nom Complet', 'Date', 'Début', 'Fin', 'Matin', 'Après-midi', 'Primes', 'Absences', 'Remarques', 'Statut'].map((header, index) => (
+                                    <th key={index} style={{ backgroundColor: '#f8f9fa', color: '#495057', padding: '12px', border: '1px solid #dee2e6', textAlign: 'left', fontWeight: 'bold' }}>
                                         {header}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {(isFilterActive ? filteredPointages : allPointages).map((pointage, index) => {
-                                const heureDebut = pointage.date_debut_emploi?.split(' ')[1]?.substring(0, 5) || '--:--';
-                                const heureFin = pointage.date_fin_emploi?.split(' ')[1]?.substring(0, 5) || '--:--';
-                                return (
-                                    <tr key={`pdf-${pointage._id}-${index}`} style={{
-                                        backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa'
-                                    }}>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.matricule}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.nom_complet}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{heureDebut}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{heureFin}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.matin || '--:--'}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.apres_midi || '--:--'}</td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>
-                                            {pointage.primes?.map((prime, idx) => (
-                                                <div key={idx} style={{
-                                                    backgroundColor: '#28a745',
-                                                    color: 'white',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '12px',
-                                                    display: 'inline-block',
-                                                    margin: '2px',
-                                                    fontSize: '10px'
-                                                }}>
-                                                    {typeof prime === 'object' ? prime.type : prime}
-                                                </div>
-                                            )) || 'Aucune'}
-                                        </td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>
-                                            {pointage.absences?.map((absence, idx) => (
-                                                <div key={idx} style={{
-                                                    backgroundColor: '#dc3545',
-                                                    color: 'white',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '12px',
-                                                    display: 'inline-block',
-                                                    margin: '2px',
-                                                    fontSize: '10px'
-                                                }}>
-                                                    {typeof absence === 'object' ? absence.type : absence}
-                                                </div>
-                                            )) || 'Aucune'}
-                                        </td>
-                                        <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.remarques || 'Aucune'}</td>
-                                    </tr>
-                                );
-                            })}
+                            {(isFilterActive ? filteredPointages : allPointages).map((pointage, index) => (
+                                <tr key={`pdf-${pointage._id}-${index}`} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }}>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.matricule}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.nom_complet}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.heureDebut}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.heureFin}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.matin || '--:--'}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.apres_midi || '--:--'}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>
+                                        {pointage.primes?.map((prime, idx) => (
+                                            <div key={idx} style={{ backgroundColor: '#28a745', color: 'white', padding: '4px 8px', borderRadius: '12px', display: 'inline-block', margin: '2px', fontSize: '10px' }}>
+                                                {typeof prime === 'object' ? prime.type : prime}
+                                            </div>
+                                        )) || 'Aucune'}
+                                    </td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>
+                                        {pointage.absences?.map((absence, idx) => (
+                                            <div key={idx} style={{ backgroundColor: '#dc3545', color: 'white', padding: '4px 8px', borderRadius: '12px', display: 'inline-block', margin: '2px', fontSize: '10px' }}>
+                                                {typeof absence === 'object' ? absence.type : absence}
+                                            </div>
+                                        )) || 'Aucune'}
+                                    </td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>{pointage.remarques || 'Aucune'}</td>
+                                    <td style={{ padding: '10px', border: '1px solid #dee2e6' }}>
+                                        <div style={getPDFStatusStyle(pointage.status)}>
+                                            {pointage.status}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
             </div>
+
             <div className="card-body">
                 <div className="card mb-4 border-primary">
                     <div className="card-header bg-light">
@@ -383,58 +388,63 @@ const AgentListPage = () => {
                                     <i className="bx bx-comment me-1"></i>
                                     Remarques
                                 </th>
+                                <th style={{ backgroundColor: "#f8f9fa", color: "#0dcaf0", verticalAlign: 'middle' }}>
+                                    <i className="bx bx-info-circle me-1"></i>
+                                    Statut
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {dataToRender.map((pointage, index) => {
-                                const heureDebut = pointage.date_debut_emploi?.split(' ')[1]?.substring(0, 5) || '--:--';
-                                const heureFin = pointage.date_fin_emploi?.split(' ')[1]?.substring(0, 5) || '--:--';
-                                return (
-                                    <tr key={`${pointage._id}-${index}`}>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            <Link
-                                                to={`/feuille-pointage/${pointage.matricule}`}
-                                                className="d-flex align-items-center text-decoration-none"
-                                            >
-                                                <i className="bx bx-link-external me-1"></i>
-                                                {pointage.matricule}
-                                            </Link>
-                                        </td>
-                                        <td style={{ verticalAlign: 'middle' }}>{pointage.nom_complet}</td>
-                                        <td style={{ verticalAlign: 'middle' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
-                                        <td style={{ verticalAlign: 'middle' }}>{heureDebut}</td>
-                                        <td style={{ verticalAlign: 'middle' }}>{heureFin}</td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            <span className="badge bg-label-primary">
-                                                {pointage.matin || '--:--'}
+                            {dataToRender.map((pointage, index) => (
+                                <tr key={`${pointage._id}-${index}`}>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        <Link
+                                            to={`/feuille-pointage/${pointage.matricule}`}
+                                            className="d-flex align-items-center text-decoration-none"
+                                        >
+                                            <i className="bx bx-link-external me-1"></i>
+                                            {pointage.matricule}
+                                        </Link>
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>{pointage.nom_complet}</td>
+                                    <td style={{ verticalAlign: 'middle' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
+                                    <td style={{ verticalAlign: 'middle' }}>{pointage.heureDebut}</td>
+                                    <td style={{ verticalAlign: 'middle' }}>{pointage.heureFin}</td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        <span className="badge bg-label-primary">
+                                            {pointage.matin || '--:--'}
+                                        </span>
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        <span className="badge bg-label-warning">
+                                            {pointage.apres_midi || '--:--'}
+                                        </span>
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        {pointage.primes?.map((prime, idx) => (
+                                            <span key={idx} className="badge bg-success me-1 mb-1">
+                                                {typeof prime === 'object' ? prime.type : prime}
                                             </span>
-                                        </td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            <span className="badge bg-label-warning">
-                                                {pointage.apres_midi || '--:--'}
+                                        )) || <span className="text-muted">Aucune</span>}
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        {pointage.absences?.map((absence, idx) => (
+                                            <span key={idx} className="badge bg-danger me-1 mb-1">
+                                                {typeof absence === 'object' ? absence.type : absence}
                                             </span>
-                                        </td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            {pointage.primes?.map((prime, idx) => (
-                                                <span key={idx} className="badge bg-success me-1 mb-1">
-                                                    {typeof prime === 'object' ? prime.type : prime}
-                                                </span>
-                                            )) || <span className="text-muted">Aucune</span>}
-                                        </td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            {pointage.absences?.map((absence, idx) => (
-                                                <span key={idx} className="badge bg-danger me-1 mb-1">
-                                                    {typeof absence === 'object' ? absence.type : absence}
-                                                </span>
-                                            )) || <span className="text-muted">Aucune</span>}
-                                        </td>
-                                        <td style={{ verticalAlign: 'middle' }}>
-                                            {pointage.remarques ||
-                                                <span className="text-muted">Aucune</span>}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                                        )) || <span className="text-muted">Aucune</span>}
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        {pointage.remarques ||
+                                            <span className="text-muted">Aucune</span>}
+                                    </td>
+                                    <td style={{ verticalAlign: 'middle' }}>
+                                        <span className={`badge ${getStatusBadgeStyle(pointage.status)}`}>
+                                            {pointage.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>

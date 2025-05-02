@@ -1,181 +1,77 @@
-import React, { useState } from 'react';
-import { AccountWrapper } from '../../components/wrapper/AccountWrapper';
+import React, { useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+import { toast } from 'react-toastify';
+import moment from 'moment';
 
-export const NotificationPage = () => {
-    const [notifications, setNotifications] = useState({
-        newForYou: { email: true, browser: true, app: true },
-        accountActivity: { email: true, browser: true, app: false },
-        newBrowser: { email: true, browser: true, app: false },
-        newDevice: { email: true, browser: false, app: false }
-    });
-
-    const [notificationSetting, setNotificationSetting] = useState('Only when I\'m online');
-
-    const handleCheckboxChange = (category, type) => {
-        setNotifications(prev => ({
-            ...prev,
-            [category]: {
-                ...prev[category],
-                [type]: !prev[category][type]
-            }
-        }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // Ajouter la logique de soumission ici
-    };
-
-    const requestNotificationPermission = () => {
-        if ('Notification' in window) {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    console.log('Notification permission granted');
-                }
-            });
+const NotificationPage = () => {
+    const { user } = useAuth();
+    const { notifications, markAsRead, fetchNotifications } = useNotifications();
+  
+    useEffect(() => {
+      if (!user?.token) return;
+  
+      const loadNotifications = async () => {
+        try {
+          await fetchNotifications(user);
+        } catch (error) {
+          toast.error('Erreur lors de la récupération des notifications');
         }
+      };
+  
+      loadNotifications();
+      
+      // Rafraîchir toutes les 30 secondes
+      const interval = setInterval(loadNotifications, 30000);
+      
+      return () => clearInterval(interval);
+    }, [user?.token, fetchNotifications]);
+  
+    const handleMarkAsRead = async (id) => {
+      try {
+        await markAsRead(id, user);
+        toast.success('Notification marquée comme lue');
+      } catch (error) {
+        toast.error('Erreur lors du marquage comme lu');
+      }
     };
-
-    return (
-        <AccountWrapper title="Notification">
-            <div className="card">
-                <h5 className="card-header">Recent Devices</h5>
-                <div className="card-body">
-                    <span>
-                        We need permission from your browser to show notifications.
-                        <button 
-                            type="button" 
-                            className="fw-medium text-primary btn btn-link p-0"
-                            onClick={requestNotificationPermission}
-                            aria-label="Request notification permission"
-                        >
-                            Request Permission
-                        </button>
-                    </span>
-                </div>
-                
-                <div className="table-responsive">
-                    <table className="table table-striped table-borderless border-bottom">
-                        <thead>
-                            <tr>
-                                <th className="text-nowrap">Type</th>
-                                <th className="text-nowrap text-center">✉️ Email</th>
-                                <th className="text-nowrap text-center">🖥 Browser</th>
-                                <th className="text-nowrap text-center">👩🏻‍💻 App</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {/* New for you row */}
-                            <tr>
-                                <td className="text-nowrap">New for you</td>
-                                {['email', 'browser', 'app'].map((type, idx) => (
-                                    <td key={`newForYou-${type}`}>
-                                        <div className="form-check d-flex justify-content-center">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
-                                                id={`newForYou-${type}`}
-                                                checked={notifications.newForYou[type]}
-                                                onChange={() => handleCheckboxChange('newForYou', type)}
-                                            />
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-
-                            {/* Account activity row */}
-                            <tr>
-                                <td className="text-nowrap">Account activity</td>
-                                {['email', 'browser', 'app'].map((type, idx) => (
-                                    <td key={`accountActivity-${type}`}>
-                                        <div className="form-check d-flex justify-content-center">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
-                                                id={`accountActivity-${type}`}
-                                                checked={notifications.accountActivity[type]}
-                                                onChange={() => handleCheckboxChange('accountActivity', type)}
-                                            />
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-
-                            {/* New browser row */}
-                            <tr>
-                                <td className="text-nowrap">A new browser used to sign in</td>
-                                {['email', 'browser', 'app'].map((type, idx) => (
-                                    <td key={`newBrowser-${type}`}>
-                                        <div className="form-check d-flex justify-content-center">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
-                                                id={`newBrowser-${type}`}
-                                                checked={notifications.newBrowser[type]}
-                                                onChange={() => handleCheckboxChange('newBrowser', type)}
-                                            />
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-
-                            {/* New device row */}
-                            <tr>
-                                <td className="text-nowrap">A new device is linked</td>
-                                {['email', 'browser', 'app'].map((type, idx) => (
-                                    <td key={`newDevice-${type}`}>
-                                        <div className="form-check d-flex justify-content-center">
-                                            <input 
-                                                className="form-check-input" 
-                                                type="checkbox" 
-                                                id={`newDevice-${type}`}
-                                                checked={notifications.newDevice[type]}
-                                                onChange={() => handleCheckboxChange('newDevice', type)}
-                                            />
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="card-body">
-                    <h6>When should we send you notifications?</h6>
-                    <form onSubmit={handleSubmit}>
-                        <div className="row">
-                            <div className="col-sm-6">
-                                <select 
-                                    id="sendNotification" 
-                                    className="form-select" 
-                                    name="sendNotification"
-                                    value={notificationSetting}
-                                    onChange={(e) => setNotificationSetting(e.target.value)}
-                                >
-                                    <option value="online">Only when I'm online</option>
-                                    <option value="anytime">Anytime</option>
-                                </select>
-                            </div>
-                            <div className="mt-4">
-                                <button 
-                                    type="submit" 
-                                    className="btn btn-primary me-2"
-                                    aria-label="Save changes"
-                                >
-                                    Save changes
-                                </button>
-                                <button 
-                                    type="reset" 
-                                    className="btn btn-outline-secondary"
-                                    aria-label="Discard changes"
-                                >
-                                    Discard
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </AccountWrapper>
-    );
+  
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h5 className="card-title">Notifications</h5>
+      </div>
+      <div className="card-body">
+        <table className="table table-hover">
+          <thead>
+            <tr>
+              <th>Message</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {notifications.map(notification => (
+              <tr key={notification._id}>
+                <td>{notification.message}</td>
+                <td>{notification.type}</td>
+                <td>{moment(notification.createdAt).format('DD/MM/YYYY HH:mm')}</td>
+                <td>
+                  <button 
+                    className="btn btn-primary btn-sm" 
+                    onClick={() => handleMarkAsRead(notification._id)}
+                  >
+                    Marquer comme lu
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
+
+export default NotificationPage;

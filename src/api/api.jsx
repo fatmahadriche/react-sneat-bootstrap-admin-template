@@ -19,14 +19,21 @@ api.interceptors.request.use((config) => {
 });
 
 // Intercepteur pour gérer les erreurs globales
+// Dans api.js
 api.interceptors.response.use(
     response => response,
     error => {
         if (error.response?.status === 401) {
-            localStorage.clear();
-            window.location.href = '/auth/login';
+            // Délai pour éviter les conflits React
+            setTimeout(() => {
+                localStorage.clear();
+                window.location.href = '/auth/login?expired=true';
+            }, 2000);
         }
-        return Promise.reject(error);
+        // Ne pas propager les erreurs 403
+        if (error.response?.status !== 403) {
+            return Promise.reject(error);
+        }
     }
 );
 window.addEventListener('storage', (event) => {

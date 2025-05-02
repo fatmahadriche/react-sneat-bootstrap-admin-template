@@ -1,0 +1,15 @@
+/* DemandeCongeModal.css */
+.modal-details p {
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.modal-details strong {
+  color: #2a5c7d;
+  min-width: 80px;
+  display: inline-block;
+}
+
+/* Réutiliser les styles du modal existant depuis AjouterUtilisateurModal.css */

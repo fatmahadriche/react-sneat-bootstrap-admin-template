@@ -26,7 +26,7 @@ const DashboardPage = () => {
         <div className="dashboard-container">
             <div className="dashboard-header">
                 <div>
-                    <h1>Calendrier Professionnel</h1>
+                    <h1>Calendrier</h1>
                     <p>Gestion des événements et rendez-vous</p>
                 </div>
             </div>

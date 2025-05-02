@@ -32,25 +32,20 @@ export const LoginPage = () => {
         e.preventDefault();
         setLoading(true);
         setError("");
-
-        if (!matricule || !password) {
-            setError("Veuillez remplir tous les champs.");
-            setLoading(false);
-            return;
-        }
-
+      
         try {
-            const res = await axios.post("http://localhost:5000/auth/login", {
-                matricule,
-                password,
-            });
-
-            if (!['admin', 'gestionnaire', 'agent'].includes(res.data.role.toLowerCase())) {
-                throw new Error("Accès non autorisé");
-            }
-
-            login(res.data.token, res.data.role, res.data.matricule);
-            navigate(`/${res.data.role.toLowerCase()}/dashboard`);
+          const res = await axios.post(`${import.meta.env.VITE_APP_API_URL}/auth/login`, {
+            matricule,
+            password,
+          });
+      
+          // Récupération des données utilisateur complètes
+          const userRes = await axios.get(`${import.meta.env.VITE_APP_API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${res.data.token}` }
+          });
+      
+          login(res.data.token, res.data.role, userRes.data);
+          navigate(`/${res.data.role.toLowerCase()}/dashboard`);
         } catch (err) {
             if (err.response?.status === 401) {
                 setError("Identifiants incorrects");

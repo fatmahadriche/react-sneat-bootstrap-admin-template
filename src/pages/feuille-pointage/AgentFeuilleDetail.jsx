@@ -63,45 +63,75 @@ const AgentFeuilleDetail = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
-                    headers: {
-                        'Authorization': `Bearer ${user.token}`
-                    }
-                });
-                if (!res.ok) throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-                const data = await res.json();
-                if (data.length > 0) {
-                    const feuilleData = data[0];
-                    setFeuille({
-                        ...feuilleData,
-                        pointages: (feuilleData.pointages || []).map(p => ({
-                            ...p,
-                            matin: p.matin || '--:--',
-                            apres_midi: p.apres_midi || '--:--'
-                        })),
-                        primes: feuilleData.primes?.map(p => typeof p === 'object' ? p.type : p) || [],
-                        absences: feuilleData.absences?.map(a => typeof a === 'object' ? a.type : a) || []
-                    });
-                    setFormData({
-                        primes: feuilleData.primes?.map(p => typeof p === 'object' ? p.type : p) || [],
-                        absences: feuilleData.absences?.map(a => typeof a === 'object' ? a.type : a) || [],
-                        remarques: feuilleData.remarques || ''
-                    });
-                } else {
-                    setFeuille(null);
-                }
-                setError(null);
-            } catch (err) {
-                console.error('Erreur:', err);
-                setError(err.message);
-                setFeuille(null);
-            } finally {
-                setLoading(false);
+          try {
+            setLoading(true);
+            setError(null);
+      
+            if (!user?.token) {
+              throw new Error("Non authentifié");
             }
+      
+            const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
+              headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+      
+            if (!res.ok) {
+              if (res.status === 404) {
+                setFeuille(null);
+                return;
+              }
+              throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+            }
+      
+            const response = await res.json();
+      
+            if (!response.success || !response.data?.length) {
+              setFeuille(null);
+              throw new Error("Aucune donnée trouvée dans la réponse");
+            }
+      
+            const feuilleData = response.data[0];
+            
+            // Formattage des données pour l'état local
+            const formattedData = {
+              ...feuilleData,
+              pointages: (feuilleData.pointages || []).map(p => ({
+                ...p,
+                matin: p.matin?.substring(0, 5) || '--:--',
+                apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
+              })),
+              primes: feuilleData.primes?.map(p => p.type || p) || [],
+              absences: feuilleData.absences?.map(a => a.type || a) || []
+            };
+      
+            // Mise à jour des états
+            setFeuille(formattedData);
+            setFormData({
+              primes: formattedData.primes,
+              absences: formattedData.absences,
+              remarques: formattedData.remarques || ''
+            });
+      
+          } catch (err) {
+            console.error('Erreur:', err);
+            setError(err.message);
+            setFeuille(null);
+            
+            if (err.message.includes("403")) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Accès refusé',
+                text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
+              });
+            }
+            
+          } finally {
+            setLoading(false);
+          }
         };
-        if (user?.token) fetchData();
-    }, [user?.token, matricule]);
+      
+        fetchData();
+      }, [user?.token, matricule]); // Dépendances correctes
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);
