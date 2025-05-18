@@ -17,7 +17,8 @@ const AgentListPage = () => {
     const [filters, setFilters] = useState({
         periodType: 'none',
         selectedDate: null,
-        sessionType: 'all'
+        sessionType: 'all',
+        searchQuery: ''
     });
     const pdfTableRef = useRef();
     const PER_PAGE = 10;
@@ -40,7 +41,7 @@ const AgentListPage = () => {
             fontSize: '10px',
             color: 'white'
         };
-        
+
         switch (status) {
             case 'Présent': return { ...baseStyle, backgroundColor: '#28a745' };
             case 'Absent': return { ...baseStyle, backgroundColor: '#dc3545' };
@@ -74,16 +75,15 @@ const AgentListPage = () => {
 
     const allPointages = useMemo(() => {
         return feuilles.flatMap(feuille => {
-            // Extraire les heures de la feuille principale
             const heureDebut = feuille.date_debut_emploi?.split(' ')[1]?.substring(0, 5) || '08:00';
             const heureFin = feuille.date_fin_emploi?.split(' ')[1]?.substring(0, 5) || '17:00';
-            
+
             return feuille.pointages.map(pointage => ({
                 ...pointage,
                 matricule: feuille.matricule,
                 nom_complet: feuille.nom_complet,
-                heureDebut, // Ajout des heures de la feuille
-                heureFin,   // Ajout des heures de la feuille
+                heureDebut,
+                heureFin,
                 primes: feuille.primes,
                 absences: feuille.absences,
                 remarques: feuille.remarques
@@ -92,42 +92,43 @@ const AgentListPage = () => {
     }, [feuilles]);
 
     const filteredPointages = useMemo(() => {
-    return allPointages.filter(pointage => {
-        const datePointage = moment(pointage.date, 'YYYY-MM-DD');
-        let periodMatch = true;
+        return allPointages.filter(pointage => {
+            const datePointage = moment(pointage.date, 'YYYY-MM-DD');
+            let periodMatch = true;
 
-        // Filtrage par période
-        if (filters.periodType !== 'none' && filters.selectedDate) {
-            const filterDate = moment(filters.selectedDate);
+            if (filters.periodType !== 'none' && filters.selectedDate) {
+                const filterDate = moment(filters.selectedDate);
 
-            if (filters.periodType === 'day') {
-                periodMatch = datePointage.isSame(filterDate, 'day');
-            } else if (filters.periodType === 'month') {
-                periodMatch = datePointage.isSame(filterDate, 'month') && datePointage.isSame(filterDate, 'year');
+                if (filters.periodType === 'day') {
+                    periodMatch = datePointage.isSame(filterDate, 'day');
+                } else if (filters.periodType === 'month') {
+                    periodMatch = datePointage.isSame(filterDate, 'month') && datePointage.isSame(filterDate, 'year');
+                }
             }
-        }
 
-        // Filtrage par type de séance
-        let sessionMatch = true;
-        if (filters.sessionType !== 'all') {
-            const debut = parseInt(pointage.heureDebut.split(':')[0]);
-            const fin = parseInt(pointage.heureFin.split(':')[0]);
+            let sessionMatch = true;
+            if (filters.sessionType !== 'all') {
+                const debut = parseInt(pointage.heureDebut.split(':')[0]);
+                const fin = parseInt(pointage.heureFin.split(':')[0]);
 
-            if (filters.sessionType === 'normal') {
-                sessionMatch = debut === 8 && fin === 17;
-            } else if (filters.sessionType === 'unique') {
-                sessionMatch = debut === 6 && fin === 14;
+                if (filters.sessionType === 'normal') {
+                    sessionMatch = debut === 8 && fin === 17;
+                } else if (filters.sessionType === 'unique') {
+                    sessionMatch = debut === 6 && fin === 14;
+                }
             }
-        }
 
-        return periodMatch && sessionMatch;
-    });
-}, [allPointages, filters]);
+            const searchMatch = pointage.matricule.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+                               pointage.nom_complet.toLowerCase().includes(filters.searchQuery.toLowerCase());
 
+            return periodMatch && sessionMatch && searchMatch;
+        });
+    }, [allPointages, filters]);
 
     const isFilterActive = filters.periodType !== 'none'
         || filters.selectedDate !== null
-        || filters.sessionType !== 'all';
+        || filters.sessionType !== 'all'
+        || filters.searchQuery !== '';
 
     const filteredPageCount = Math.ceil(filteredPointages.length / PER_PAGE);
     const filteredOffset = currentPage * PER_PAGE;
@@ -157,7 +158,8 @@ const AgentListPage = () => {
         setFilters({
             periodType: 'none',
             selectedDate: null,
-            sessionType: 'all'
+            sessionType: 'all',
+            searchQuery: ''
         });
         setCurrentPage(0);
     };
@@ -338,135 +340,166 @@ const AgentListPage = () => {
                                 </button>
                             </div>
                         </div>
+                        <div className="row g-3 align-items-end mt-3">
+                            <div className="col-md-4">
+                                <label className="form-label fw-bold">Recherche</label>
+                                <div className="input-group">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={filters.searchQuery}
+                                        onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                                        placeholder="Rechercher..."
+                                        style={{ width: '200px' }}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => handleFilterChange('searchQuery', filters.searchQuery)}
+                                        style={{ width: '50px' }}
+                                    >
+                                        <i className="bx bx-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="table-responsive" style={{ overflowX: 'auto' }}>
-                    <table className="table table-hover table-striped" style={{ minWidth: '1200px' }}>
-                        <thead className="table-light">
-                            <tr>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#0d6efd", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-id-card me-1"></i>
-                                    Matricule
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#198754", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-user me-1"></i>
-                                    Nom Complet
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#fd7e14", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-calendar me-1"></i>
-                                    Date
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#6f42c1", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-time me-1"></i>
-                                    Début
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#d63384", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-time-five me-1"></i>
-                                    Fin
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#ffc107", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-sun me-1"></i>
-                                    Matin
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#dc3545", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-moon me-1"></i>
-                                    Après-midi
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#20c997", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-star me-1"></i>
-                                    Primes
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#ff6b6b", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-x-circle me-1"></i>
-                                    Absences
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#495057", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-comment me-1"></i>
-                                    Remarques
-                                </th>
-                                <th style={{ backgroundColor: "#f8f9fa", color: "#0dcaf0", verticalAlign: 'middle' }}>
-                                    <i className="bx bx-info-circle me-1"></i>
-                                    Statut
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {dataToRender.map((pointage, index) => (
-                                <tr key={`${pointage._id}-${index}`}>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        <Link
-                                            to={`/feuille-pointage/${pointage.matricule}`}
-                                            className="d-flex align-items-center text-decoration-none"
-                                        >
-                                            <i className="bx bx-link-external me-1"></i>
-                                            {pointage.matricule}
-                                        </Link>
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>{pointage.nom_complet}</td>
-                                    <td style={{ verticalAlign: 'middle' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
-                                    <td style={{ verticalAlign: 'middle' }}>{pointage.heureDebut}</td>
-                                    <td style={{ verticalAlign: 'middle' }}>{pointage.heureFin}</td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        <span className="badge bg-label-primary">
-                                            {pointage.matin || '--:--'}
-                                        </span>
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        <span className="badge bg-label-warning">
-                                            {pointage.apres_midi || '--:--'}
-                                        </span>
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        {pointage.primes?.map((prime, idx) => (
-                                            <span key={idx} className="badge bg-success me-1 mb-1">
-                                                {typeof prime === 'object' ? prime.type : prime}
-                                            </span>
-                                        )) || <span className="text-muted">Aucune</span>}
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        {pointage.absences?.map((absence, idx) => (
-                                            <span key={idx} className="badge bg-danger me-1 mb-1">
-                                                {typeof absence === 'object' ? absence.type : absence}
-                                            </span>
-                                        )) || <span className="text-muted">Aucune</span>}
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        {pointage.remarques ||
-                                            <span className="text-muted">Aucune</span>}
-                                    </td>
-                                    <td style={{ verticalAlign: 'middle' }}>
-                                        <span className={`badge ${getStatusBadgeStyle(pointage.status)}`}>
-                                            {pointage.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-                {pageCount > 1 && (
-                    <div className="d-flex justify-content-center mt-3">
-                        <ReactPaginate
-                            previousLabel={<i className="bx bx-chevron-left"></i>}
-                            nextLabel={<i className="bx bx-chevron-right"></i>}
-                            pageCount={pageCount}
-                            onPageChange={handlePageClick}
-                            containerClassName="pagination mb-0"
-                            activeClassName="active"
-                            pageClassName="page-item"
-                            pageLinkClassName="page-link"
-                            previousClassName="page-item"
-                            previousLinkClassName="page-link"
-                            nextClassName="page-item"
-                            nextLinkClassName="page-link"
-                            breakLabel="..."
-                            breakClassName="page-item"
-                            breakLinkClassName="page-link"
-                            marginPagesDisplayed={2}
-                            pageRangeDisplayed={5}
-                            forcePage={currentPage}
-                        />
+                {isFilterActive && filteredPointages.length === 0 ? (
+                    <div className="alert alert-info mb-4">
+                        <i className="bx bx-info-circle me-2"></i>
+                        Aucun pointage ne correspond aux critères de filtrage
                     </div>
+                ) : (
+                    <>
+                        <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                            <table className="table table-hover table-striped" style={{ minWidth: '1200px' }}>
+                                <thead className="table-light">
+                                    <tr>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#0d6efd", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-id-card me-1"></i>
+                                            Matricule
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#198754", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-user me-1"></i>
+                                            Nom Complet
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#fd7e14", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-calendar me-1"></i>
+                                            Date
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#6f42c1", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-time me-1"></i>
+                                            Début
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#d63384", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-time-five me-1"></i>
+                                            Fin
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#ffc107", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-sun me-1"></i>
+                                            Matin
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#dc3545", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-moon me-1"></i>
+                                            Après-midi
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#20c997", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-star me-1"></i>
+                                            Primes
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#ff6b6b", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-x-circle me-1"></i>
+                                            Absences
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#495057", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-comment me-1"></i>
+                                            Remarques
+                                        </th>
+                                        <th style={{ backgroundColor: "#f8f9fa", color: "#0dcaf0", verticalAlign: 'middle' }}>
+                                            <i className="bx bx-info-circle me-1"></i>
+                                            Statut
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {dataToRender.map((pointage, index) => (
+                                        <tr key={`${pointage._id}-${index}`}>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                <Link
+                                                    to={`/feuille-pointage/${pointage.matricule}`}
+                                                    className="d-flex align-items-center text-decoration-none"
+                                                >
+                                                    <i className="bx bx-link-external me-1"></i>
+                                                    {pointage.matricule}
+                                                </Link>
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>{pointage.nom_complet}</td>
+                                            <td style={{ verticalAlign: 'middle' }}>{moment(pointage.date).format('DD/MM/YYYY')}</td>
+                                            <td style={{ verticalAlign: 'middle' }}>{pointage.heureDebut}</td>
+                                            <td style={{ verticalAlign: 'middle' }}>{pointage.heureFin}</td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                <span className="badge bg-label-primary">
+                                                    {pointage.matin || '--:--'}
+                                                </span>
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                <span className="badge bg-label-warning">
+                                                    {pointage.apres_midi || '--:--'}
+                                                </span>
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                {pointage.primes?.map((prime, idx) => (
+                                                    <span key={idx} className="badge bg-success me-1 mb-1">
+                                                        {typeof prime === 'object' ? prime.type : prime}
+                                                    </span>
+                                                )) || <span className="text-muted">Aucune</span>}
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                {pointage.absences?.map((absence, idx) => (
+                                                    <span key={idx} className="badge bg-danger me-1 mb-1">
+                                                        {typeof absence === 'object' ? absence.type : absence}
+                                                    </span>
+                                                )) || <span className="text-muted">Aucune</span>}
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                {pointage.remarques ||
+                                                    <span className="text-muted">Aucune</span>}
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                <span className={`badge ${getStatusBadgeStyle(pointage.status)}`}>
+                                                    {pointage.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {pageCount > 1 && (
+                            <div className="d-flex justify-content-center mt-3">
+                                <ReactPaginate
+                                    previousLabel={<i className="bx bx-chevron-left"></i>}
+                                    nextLabel={<i className="bx bx-chevron-right"></i>}
+                                    pageCount={pageCount}
+                                    onPageChange={handlePageClick}
+                                    containerClassName="pagination mb-0"
+                                    activeClassName="active"
+                                    pageClassName="page-item"
+                                    pageLinkClassName="page-link"
+                                    previousClassName="page-item"
+                                    previousLinkClassName="page-link"
+                                    nextClassName="page-item"
+                                    nextLinkClassName="page-link"
+                                    breakLabel="..."
+                                    breakClassName="page-item"
+                                    breakLinkClassName="page-link"
+                                    marginPagesDisplayed={2}
+                                    pageRangeDisplayed={5}
+                                    forcePage={currentPage}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
