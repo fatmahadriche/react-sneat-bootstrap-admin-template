@@ -92,42 +92,38 @@ const AgentListPage = () => {
     }, [feuilles]);
 
     const filteredPointages = useMemo(() => {
-        return allPointages.filter(pointage => {
-            const datePointage = moment(pointage.date, 'YYYY-MM-DD');
-            let periodMatch = true;
-            
-            // Filtrage par période
-            if (filters.periodType !== 'none' && filters.selectedDate) {
-                const filterDate = moment(filters.selectedDate).startOf(filters.periodType);
-                
-                if (filters.periodType === 'day') {
-                    periodMatch = datePointage.isSame(filterDate, 'day');
-                } else if (filters.periodType === 'month') {
-                    periodMatch = datePointage.isBetween(
-                        filterDate.startOf('month'),
-                        filterDate.endOf('month'),
-                        null,
-                        '[]'
-                    );
-                }
+    return allPointages.filter(pointage => {
+        const datePointage = moment(pointage.date, 'YYYY-MM-DD');
+        let periodMatch = true;
+
+        // Filtrage par période
+        if (filters.periodType !== 'none' && filters.selectedDate) {
+            const filterDate = moment(filters.selectedDate);
+
+            if (filters.periodType === 'day') {
+                periodMatch = datePointage.isSame(filterDate, 'day');
+            } else if (filters.periodType === 'month') {
+                periodMatch = datePointage.isSame(filterDate, 'month') && datePointage.isSame(filterDate, 'year');
             }
-    
-            // Filtrage par type de séance
-            let sessionMatch = true;
-            if (filters.sessionType !== 'all') {
-                const debut = parseInt(pointage.heureDebut.split(':')[0]);
-                const fin = parseInt(pointage.heureFin.split(':')[0]);
-                
-                if (filters.sessionType === 'normal') {
-                    sessionMatch = debut === 8 && fin === 17;
-                } else if (filters.sessionType === 'unique') {
-                    sessionMatch = debut === 6 && fin === 14;
-                }
+        }
+
+        // Filtrage par type de séance
+        let sessionMatch = true;
+        if (filters.sessionType !== 'all') {
+            const debut = parseInt(pointage.heureDebut.split(':')[0]);
+            const fin = parseInt(pointage.heureFin.split(':')[0]);
+
+            if (filters.sessionType === 'normal') {
+                sessionMatch = debut === 8 && fin === 17;
+            } else if (filters.sessionType === 'unique') {
+                sessionMatch = debut === 6 && fin === 14;
             }
-    
-            return periodMatch && sessionMatch;
-        });
-    }, [allPointages, filters]);
+        }
+
+        return periodMatch && sessionMatch;
+    });
+}, [allPointages, filters]);
+
 
     const isFilterActive = filters.periodType !== 'none'
         || filters.selectedDate !== null

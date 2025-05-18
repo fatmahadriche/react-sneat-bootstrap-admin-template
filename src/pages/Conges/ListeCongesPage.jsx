@@ -13,7 +13,6 @@ const ListeCongesPage = () => {
   const [selectedConge, setSelectedConge] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [status, setStatus] = useState('');
-  const [commentaire, setCommentaire] = useState('');
 
   console.log('[INIT] User data:', user); // Log initial user data
 
@@ -104,12 +103,12 @@ const ListeCongesPage = () => {
     fetchConges();
   }, []);
 
-  const handleStatusUpdate = async (matricule, statut, commentaire) => {
-    console.log('[UPDATE] Handling status update:', { matricule, statut, commentaire });
+  const handleStatusUpdate = async (matricule, statut) => {
+    console.log('[UPDATE] Handling status update:', { matricule, statut });
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_APP_API_URL}/api/conges/${matricule}`,
-        { statut, commentaire },
+        { statut },
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
 
@@ -131,7 +130,7 @@ const ListeCongesPage = () => {
     conges: conges.length,
     isManagement,
     backendRole,
-    firstConge: conges[0]
+    firstConge: conges[0] 
   });
 
   return (
@@ -292,7 +291,7 @@ const ListeCongesPage = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleStatusUpdate(selectedConge.matricule, status, commentaire);
+            handleStatusUpdate(selectedConge.matricule, status);
           }}
         >
           <div className="form-group mb-3">
@@ -307,15 +306,6 @@ const ListeCongesPage = () => {
               <option value="approuvé">Approuvé</option>
               <option value="rejeté">Rejeté</option>
             </select>
-          </div>
-          <div className="form-group mb-3">
-            <label>Commentaire</label>
-            <textarea
-              className="form-control"
-              value={commentaire}
-              onChange={(e) => setCommentaire(e.target.value)}
-              required
-            ></textarea>
           </div>
           <div className="d-flex justify-content-end">
             <button type="submit" className="btn btn-primary me-2">
