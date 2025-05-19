@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:5000", // Base URL sans /auth
+    baseURL: import.meta.env.VITE_APP_API_URL,// Base URL sans /auth
     timeout: 10000,
     headers: {
         "Content-Type": "application/json"
@@ -20,22 +20,27 @@ api.interceptors.request.use((config) => {
 
 // Intercepteur pour gérer les erreurs globales
 // Dans api.js
+// Modifier l'intercepteur de réponse axios :
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
-            // Délai pour éviter les conflits React
-            setTimeout(() => {
-                localStorage.clear();
-                window.location.href = '/auth/login?expired=true';
-            }, 2000);
+        if (!error.response) {
+            error.response = {
+                data: { 
+                    error: "Problème de connexion. Vérifiez votre accès Internet."
+                }
+            };
         }
-        // Ne pas propager les erreurs 403
-        if (error.response?.status !== 403) {
-            return Promise.reject(error);
+
+        if (error.response.status === 401) {
+            localStorage.clear();
+            window.location.href = `/auth/login?sessionExpired=true`;
         }
+        
+        return Promise.reject(error);
     }
 );
+
 window.addEventListener('storage', (event) => {
     if (event.key === 'token' && !event.newValue) {
         window.location.href = '/auth/login';

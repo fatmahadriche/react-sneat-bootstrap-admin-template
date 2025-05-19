@@ -83,7 +83,7 @@ const Navbar = () => {
           {
             params: { q: query },
             headers: { Authorization: `Bearer ${user.token}` },
-            cancelToken: new axios.CancelToken(c => (searchRef.current.cancel = c))
+            cancelToken: new axios.CancelToken(c => (searchRef.current = { cancel: c }))
           }
         );
         setSearchResults(response.data || []);
@@ -105,7 +105,7 @@ const Navbar = () => {
     }
     return () => {
       debouncedSearch.cancel();
-      if (searchRef.current.cancel) {
+      if (searchRef.current?.cancel) {
         searchRef.current.cancel();
       }
     };
@@ -137,8 +137,8 @@ const Navbar = () => {
       <div className="navbar-nav-right d-flex align-items-center" ref={searchRef}>
         {/* Zone de recherche */}
         <div className="d-flex align-items-center me-3">
-          <div 
-            className="nav-item cursor-pointer me-2" 
+          <div
+            className="nav-item cursor-pointer me-2"
             onClick={() => setShowSearch(!showSearch)}
           >
             <i className={`bx bx-${showSearch ? 'x' : 'search'} fs-4`}></i>
@@ -242,8 +242,8 @@ const Navbar = () => {
                 ))}
                 {notifications.length > 5 && (
                   <div className="dropdown-footer text-center py-2">
-                    <a 
-                      href="#" 
+                    <a
+                      href="#"
                       onClick={(e) => {
                         e.preventDefault();
                         navigate('/account/notifications');
@@ -258,35 +258,35 @@ const Navbar = () => {
           </div>
 
           {/* Menu utilisateur */}
-<ul className="navbar-nav flex-row align-items-center">
-  <li className="nav-item navbar-dropdown dropdown-user dropdown">
-    <a className="nav-link dropdown-toggle hide-arrow" href="#" data-bs-toggle="dropdown">
-      <div className="avatar avatar-online">
-        {/* Remplacement de l'image par une icône professionnelle */}
-        <span className="avatar-initial bg-primary rounded-circle">
-          <i className="bx bx-user-circle fs-4"></i>
-        </span>
-      </div>
-    </a>
-    <ul className="dropdown-menu dropdown-menu-end py-2">
-      <li>
-        <div className="dropdown-header px-3">
-          <h6 className="mb-0">{user?.nom || 'Utilisateur'}</h6>
-          <small>{user?.role || 'Rôle inconnu'}</small>
-        </div>
-      </li>
-      <li>
-        <hr className="dropdown-divider" />
-      </li>
-      <li>
-        <a className="dropdown-item" href="#" onClick={logout}>
-          <i className="bx bx-power-off me-2"></i>
-          Déconnexion
-        </a>
-      </li>
-    </ul>
-  </li>
-</ul>
+          <ul className="navbar-nav flex-row align-items-center">
+            <li className="nav-item navbar-dropdown dropdown-user dropdown">
+              <a className="nav-link dropdown-toggle hide-arrow" href="#" data-bs-toggle="dropdown">
+                <div className="avatar avatar-online">
+                  {/* Remplacement de l'image par une icône professionnelle */}
+                  <span className="avatar-initial bg-primary rounded-circle">
+                    <i className="bx bx-user-circle fs-4"></i>
+                  </span>
+                </div>
+              </a>
+              <ul className="dropdown-menu dropdown-menu-end py-2">
+                <li>
+                  <div className="dropdown-header px-3">
+                    <h6 className="mb-0">{user?.nom || 'Utilisateur'}</h6>
+                    <small>{user?.role || 'Rôle inconnu'}</small>
+                  </div>
+                </li>
+                <li>
+                  <hr className="dropdown-divider" />
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#" onClick={logout}>
+                    <i className="bx bx-power-off me-2"></i>
+                    Déconnexion
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>

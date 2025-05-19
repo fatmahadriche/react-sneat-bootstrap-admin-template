@@ -42,11 +42,14 @@ const HeuresSupplementairesDetailPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const result = await getHeuresByUser(userId, { 
+                console.log('Fetching data for user:', userId, 'with filters:', { mois, annee });
+                const result = await getHeuresByUser(userId, {
                     mois: location.state?.filters?.mois,
-                    annee: location.state?.filters?.annee 
+                    annee: location.state?.filters?.annee
                 });
-                
+
+                console.log('Data fetched:', result);
+
                 if (result) {
                     setData(result);
                 } else {
@@ -54,14 +57,14 @@ const HeuresSupplementairesDetailPage = () => {
                     navigate('/heures-supplementaires');
                 }
             } catch (error) {
+                console.error('Error fetching data:', error);
                 message.error('Erreur lors du chargement des détails');
-                console.error('Error:', error);
                 navigate('/heures-supplementaires');
             } finally {
                 setLoading(false);
             }
         };
-    
+
         fetchData();
     }, [userId, navigate, location.state]);
 
@@ -77,8 +80,10 @@ const HeuresSupplementairesDetailPage = () => {
         return <div>Aucune donnée disponible</div>;
     }
 
+    console.log('Data to render:', data);
+
     return (
-        <Card 
+        <Card
             title={`Détails des heures supplémentaires - ${data.nom} ${data.prenom}`}
             extra={
                 <Button type="primary" onClick={() => navigate(-1)}>
@@ -89,7 +94,7 @@ const HeuresSupplementairesDetailPage = () => {
             <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
                 <Descriptions.Item label="Matricule">{data.matricule}</Descriptions.Item>
                 <Descriptions.Item label="Mois/Année">
-                    {data.mois && data.annee 
+                    {data.mois && data.annee
                         ? `${data.mois}/${data.annee}`
                         : 'Non spécifié'}
                 </Descriptions.Item>

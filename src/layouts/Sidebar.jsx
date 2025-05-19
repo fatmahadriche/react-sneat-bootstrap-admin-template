@@ -78,7 +78,7 @@ const Sidebar = () => {
       </div>
 
       {/* Style intégré pour la scrollbar */}
-      <style jsx>{`
+      <style>{`
         .menu-container::-webkit-scrollbar {
           width: 6px;
         }

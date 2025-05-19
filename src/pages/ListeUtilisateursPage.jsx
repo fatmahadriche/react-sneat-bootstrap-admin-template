@@ -69,12 +69,25 @@ const ListeUtilisateursPage = () => {
     };
 
     const handlePageClick = (event) => {
-        setCurrentPage(event.selected);
-    };
+    const selectedPage = event.selected;
+    // Ensure the selected page is within the bounds of totalPages
+    if (selectedPage < totalPages) {
+        setCurrentPage(selectedPage);
+    } else {
+        setCurrentPage(totalPages - 1);
+    }
+};
 
-    useEffect(() => {
-        fetchUsers();
-    }, [currentPage, itemsPerPage]);
+useEffect(() => {
+    // Reset currentPage if it exceeds totalPages when itemsPerPage changes
+    if (currentPage >= totalPages) {
+        setCurrentPage(totalPages - 1);
+    }
+}, [totalPages]);
+
+useEffect(() => {
+    fetchUsers();
+}, [currentPage, itemsPerPage]);
 
     return (
         <>

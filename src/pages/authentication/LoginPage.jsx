@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react"; // Ajoutez useEffect ici
+import { useNavigate, useLocation } from "react-router-dom"; // Ajoutez useLocation
 import axios from "axios";
 import { FaUser, FaLock, FaSignInAlt } from "react-icons/fa";
 import { useAuth } from "../../context/authContext";
@@ -12,6 +12,13 @@ export const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        if (queryParams.get("sessionExpired")) {
+            setError("Votre session a expiré. Veuillez vous reconnecter.");
+        }
+    }, [location]);
     const validateMatriculeInput = (event) => {
         if (
             event.key === "Backspace" || 
@@ -61,8 +68,13 @@ export const LoginPage = () => {
             <h4 className="mb-2">Bienvenue sur le Portail STEG 👋</h4>
             <p className="mb-4">Veuillez saisir vos identifiants de connexion</p>
 
+           {/* Ajouter un style pour le message d'expiration */}
             {error && (
-                <div className="alert alert-danger" role="alert">
+                <div className={error.includes("expiré") 
+                    ? "alert alert-warning" 
+                    : "alert alert-danger"} 
+                    role="alert"
+                >
                     {error}
                 </div>
             )}

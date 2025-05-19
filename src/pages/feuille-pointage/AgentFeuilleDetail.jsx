@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import moment from 'moment';
 import { useReactToPrint } from 'react-to-print';
@@ -15,6 +15,8 @@ const AgentFeuilleDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [selectedPointageDate, setSelectedPointageDate] = useState(null); // Ajouté
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         primes: [],
         absences: [],
@@ -31,30 +33,34 @@ const AgentFeuilleDetail = () => {
 
     const filteredPointages = useMemo(() => {
         if (!feuille) return [];
-        return feuille.pointages.filter(pointage => {
-            const datePointage = moment(pointage.date);
-            let periodMatch = true;
-            if (filters.periodType === 'day' && filters.selectedDate) {
-                periodMatch = datePointage.isSame(filters.selectedDate, 'day');
-            } else if (filters.periodType === 'month' && filters.selectedDate) {
-                periodMatch = datePointage.isSame(filters.selectedDate, 'month');
-            }
-            let sessionMatch = true;
-            if (filters.sessionType !== 'all' && feuille.date_debut_emploi && feuille.date_fin_emploi) {
-                const debutEmploi = moment(feuille.date_debut_emploi.split(' ')[1], 'HH:mm');
-                const finEmploi = moment(feuille.date_fin_emploi.split(' ')[1], 'HH:mm');
-                if (filters.sessionType === 'normal') {
-                    sessionMatch =
-                        debutEmploi.hours() === 8 &&
-                        finEmploi.hours() === 17;
-                } else if (filters.sessionType === 'unique') {
-                    sessionMatch =
-                        debutEmploi.hours() === 6 &&
-                        finEmploi.hours() === 14;
+        return feuille.pointages
+            .filter(pointage => {
+                const datePointage = moment(pointage.date);
+                let periodMatch = true;
+
+                // Filtrage par période
+                if (filters.periodType === 'day' && filters.selectedDate) {
+                    periodMatch = datePointage.isSame(filters.selectedDate, 'day');
+                } else if (filters.periodType === 'month' && filters.selectedDate) {
+                    periodMatch = datePointage.isSame(filters.selectedDate, 'month');
                 }
-            }
-            return periodMatch && sessionMatch;
-        });
+
+                // Filtrage par type de séance
+                let sessionMatch = true;
+                if (filters.sessionType !== 'all' && feuille.date_debut_emploi && feuille.date_fin_emploi) {
+                    const debutEmploi = moment(feuille.date_debut_emploi.split(' ')[1], 'HH:mm');
+                    const finEmploi = moment(feuille.date_fin_emploi.split(' ')[1], 'HH:mm');
+
+                    if (filters.sessionType === 'normal') {
+                        sessionMatch = debutEmploi.hours() === 8 && finEmploi.hours() === 17;
+                    } else if (filters.sessionType === 'unique') {
+                        sessionMatch = debutEmploi.hours() === 6 && finEmploi.hours() === 14;
+                    }
+                }
+
+                return periodMatch && sessionMatch;
+            })
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
     }, [feuille, filters]);
 
     const pageCount = Math.ceil(filteredPointages.length / PER_PAGE);
@@ -63,75 +69,80 @@ const AgentFeuilleDetail = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-          try {
-            setLoading(true);
-            setError(null);
-      
-            if (!user?.token) {
-              throw new Error("Non authentifié");
-            }
-      
-            const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
-              headers: { 'Authorization': `Bearer ${user.token}` }
-            });
-      
-            if (!res.ok) {
-              if (res.status === 404) {
+            try {
+                setLoading(true);
+                setError(null);
+
+                if (!user?.token) {
+                    throw new Error("Non authentifié");
+                }
+
+                const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        setFeuille(null);
+                        return;
+                    }
+                    throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+                }
+
+                const response = await res.json();
+
+                if (!response.success || !response.data?.length) {
+                    setFeuille(null);
+                    throw new Error("Aucune donnée trouvée dans la réponse");
+                }
+
+                // Fusionner toutes les feuilles
+                const mergedFeuilles = response.data.reduce((acc, feuille) => {
+                    return {
+                        ...feuille,
+                        pointages: [...acc.pointages || [], ...feuille.pointages || []],
+                        primes: [...acc.primes || [], ...feuille.primes || []],
+                        absences: [...acc.absences || [], ...feuille.absences || []]
+                    };
+                }, {});
+
+                const formattedData = {
+                    ...mergedFeuilles,
+                    pointages: (mergedFeuilles.pointages || []).map(p => ({
+                        ...p,
+                        matin: p.matin?.substring(0, 5) || '--:--',
+                        apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
+                    })),
+                    primes: mergedFeuilles.primes?.map(p => p.type || p) || [],
+                    absences: mergedFeuilles.absences?.map(a => a.type || a) || []
+                };
+
+                setFeuille(formattedData);
+                setFormData({
+                    primes: formattedData.primes,
+                    absences: formattedData.absences,
+                    remarques: formattedData.remarques || ''
+                });
+
+            } catch (err) {
+                setError(err.message);
                 setFeuille(null);
-                return;
-              }
-              throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+
+                if (err.message.includes("403")) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Accès refusé',
+                        text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
+                    });
+                }
+
+            } finally {
+                setLoading(false);
             }
-      
-            const response = await res.json();
-      
-            if (!response.success || !response.data?.length) {
-              setFeuille(null);
-              throw new Error("Aucune donnée trouvée dans la réponse");
-            }
-      
-            const feuilleData = response.data[0];
-            
-            // Formattage des données pour l'état local
-            const formattedData = {
-              ...feuilleData,
-              pointages: (feuilleData.pointages || []).map(p => ({
-                ...p,
-                matin: p.matin?.substring(0, 5) || '--:--',
-                apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
-              })),
-              primes: feuilleData.primes?.map(p => p.type || p) || [],
-              absences: feuilleData.absences?.map(a => a.type || a) || []
-            };
-      
-            // Mise à jour des états
-            setFeuille(formattedData);
-            setFormData({
-              primes: formattedData.primes,
-              absences: formattedData.absences,
-              remarques: formattedData.remarques || ''
-            });
-      
-          } catch (err) {
-            console.error('Erreur:', err);
-            setError(err.message);
-            setFeuille(null);
-            
-            if (err.message.includes("403")) {
-              Swal.fire({
-                icon: 'error',
-                title: 'Accès refusé',
-                text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
-              });
-            }
-            
-          } finally {
-            setLoading(false);
-          }
         };
-      
+
         fetchData();
-      }, [user?.token, matricule]); // Dépendances correctes
+    }, [user?.token, matricule]);
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);
@@ -173,7 +184,19 @@ const AgentFeuilleDetail = () => {
         });
     };
 
+    const handleEditClick = (pointage) => {
+        setIsEditing(true);
+        setSelectedPointageDate(pointage.date);
+        // Optionnel : charger les données spécifiques à ce pointage si besoin
+    };
+
     const handleSubmit = async () => {
+        if (!selectedPointageDate) {
+            Swal.fire('Erreur!', 'Aucune date de pointage sélectionnée', 'error');
+            // ...dans handleSubmit, juste après le Swal.fire de succès :
+localStorage.setItem('refreshAgentList', '1');
+            return;
+        }
         try {
             const response = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
                 method: 'PUT',
@@ -181,16 +204,49 @@ const AgentFeuilleDetail = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${user.token}`
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    date: selectedPointageDate,
+                    primes: formData.primes,
+                    absences: formData.absences,
+                    remarques: formData.remarques
+                })
             });
-            if (!response.ok) throw new Error('Échec de la mise à jour');
-            const result = await response.json();
-            setFeuille(prev => ({ ...prev, ...formData }));
+
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || 'Échec de la mise à jour');
+
+            setFeuille(prev => ({
+                ...prev,
+                primes: data.primes || prev.primes,
+                absences: data.absences || prev.absences,
+                remarques: data.remarques !== undefined ? data.remarques : prev.remarques
+            }));
+
             setIsEditing(false);
-            Swal.fire('Succès!', 'Modifications enregistrées avec succès', 'success');
+            setSelectedPointageDate(null);
+
+            Swal.fire({
+                title: 'Succès!',
+                text: 'Modifications enregistrées avec succès',
+                icon: 'success'
+            }).then(() => {
+                navigate('/feuille-pointage');
+            });
+
         } catch (error) {
             Swal.fire('Erreur!', error.message, 'error');
         }
+    };
+
+    const handleCancel = () => {
+        setFormData({
+            primes: feuille.primes,
+            absences: feuille.absences,
+            remarques: feuille.remarques || ''
+        });
+        setIsEditing(false);
+        setSelectedPointageDate(null);
     };
 
     const primesOptions = [
@@ -373,19 +429,30 @@ const AgentFeuilleDetail = () => {
                                                         {!isEditing ? (
                                                             <button
                                                                 className="btn btn-sm btn-warning me-2"
-                                                                onClick={() => setIsEditing(true)}
+                                                                onClick={() => handleEditClick(pointage)}
                                                                 title="Modifier"
                                                             >
                                                                 <i className="bx bx-edit"></i> Modifier
                                                             </button>
                                                         ) : (
-                                                            <button
-                                                                className="btn btn-sm btn-success"
-                                                                onClick={handleSubmit}
-                                                                title="Enregistrer"
-                                                            >
-                                                                <i className="bx bx-save"></i> Enregistrer
-                                                            </button>
+                                                            selectedPointageDate === pointage.date && (
+                                                                <div className="d-flex">
+                                                                    <button
+                                                                        className="btn btn-sm btn-success me-2"
+                                                                        onClick={handleSubmit}
+                                                                        title="Enregistrer"
+                                                                    >
+                                                                        <i className="bx bx-save"></i> Enregistrer
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-sm btn-secondary"
+                                                                        onClick={handleCancel}
+                                                                        title="Annuler"
+                                                                    >
+                                                                        <i className="bx bx-x"></i> Annuler
+                                                                    </button>
+                                                                </div>
+                                                            )
                                                         )}
                                                     </td>
                                                 </tr>

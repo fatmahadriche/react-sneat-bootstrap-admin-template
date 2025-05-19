@@ -74,11 +74,23 @@ const ModifierUtilisateurPage = () => {
     const handleConfirm = async () => {
         setShowConfirmation(false);
         try {
-            const dataToSend = { ...userData };
-            if (!dataToSend.password) delete dataToSend.password;
+            // Préparation des données à envoyer
+            const dataToSend = {
+                nom: userData.nom,
+                prenom: userData.prenom,
+                email: userData.email,
+                tel: userData.tel,
+                role: userData.role
+            };
+    
+            // Ajout du mot de passe seulement si modifié
+            if (userData.password) {
+                dataToSend.password = userData.password;
+            }
+    
             await axios.put(
                 `${import.meta.env.VITE_APP_API_URL}/auth/admin/update-user/${id}`,
-                userData,
+                dataToSend,
                 {
                     headers: {
                         Authorization: `Bearer ${user.token}`,
