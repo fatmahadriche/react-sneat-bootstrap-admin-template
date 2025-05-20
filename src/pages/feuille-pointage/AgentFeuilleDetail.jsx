@@ -69,80 +69,75 @@ const AgentFeuilleDetail = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-
-                if (!user?.token) {
-                    throw new Error("Non authentifié");
-                }
-
-                const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
-                    headers: { 'Authorization': `Bearer ${user.token}` }
-                });
-
-                if (!res.ok) {
-                    if (res.status === 404) {
-                        setFeuille(null);
-                        return;
-                    }
-                    throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-                }
-
-                const response = await res.json();
-
-                if (!response.success || !response.data?.length) {
-                    setFeuille(null);
-                    throw new Error("Aucune donnée trouvée dans la réponse");
-                }
-
-                // Fusionner toutes les feuilles
-                const mergedFeuilles = response.data.reduce((acc, feuille) => {
-                    return {
-                        ...feuille,
-                        pointages: [...acc.pointages || [], ...feuille.pointages || []],
-                        primes: [...acc.primes || [], ...feuille.primes || []],
-                        absences: [...acc.absences || [], ...feuille.absences || []]
-                    };
-                }, {});
-
-                const formattedData = {
-                    ...mergedFeuilles,
-                    pointages: (mergedFeuilles.pointages || []).map(p => ({
-                        ...p,
-                        matin: p.matin?.substring(0, 5) || '--:--',
-                        apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
-                    })),
-                    primes: mergedFeuilles.primes?.map(p => p.type || p) || [],
-                    absences: mergedFeuilles.absences?.map(a => a.type || a) || []
-                };
-
-                setFeuille(formattedData);
-                setFormData({
-                    primes: formattedData.primes,
-                    absences: formattedData.absences,
-                    remarques: formattedData.remarques || ''
-                });
-
-            } catch (err) {
-                setError(err.message);
-                setFeuille(null);
-
-                if (err.message.includes("403")) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Accès refusé',
-                        text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
-                    });
-                }
-
-            } finally {
-                setLoading(false);
+          try {
+            setLoading(true);
+            setError(null);
+      
+            if (!user?.token) {
+              throw new Error("Non authentifié");
             }
+      
+            const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
+              headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+      
+            if (!res.ok) {
+              if (res.status === 404) {
+                setFeuille(null);
+                return;
+              }
+              throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+            }
+      
+            const response = await res.json();
+      
+            if (!response.success || !response.data?.length) {
+              setFeuille(null);
+              throw new Error("Aucune donnée trouvée dans la réponse");
+            }
+      
+            const feuilleData = response.data[0];
+            
+            // Formattage des données pour l'état local
+            const formattedData = {
+              ...feuilleData,
+              pointages: (feuilleData.pointages || []).map(p => ({
+                ...p,
+                matin: p.matin?.substring(0, 5) || '--:--',
+                apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
+              })),
+              primes: feuilleData.primes?.map(p => p.type || p) || [],
+              absences: feuilleData.absences?.map(a => a.type || a) || []
+            };
+      
+            // Mise à jour des états
+            setFeuille(formattedData);
+            setFormData({
+              primes: formattedData.primes,
+              absences: formattedData.absences,
+              remarques: formattedData.remarques || ''
+            });
+      
+          } catch (err) {
+            console.error('Erreur:', err);
+            setError(err.message);
+            setFeuille(null);
+            
+            if (err.message.includes("403")) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Accès refusé',
+                text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
+              });
+            }
+            
+          } finally {
+            setLoading(false);
+          }
         };
-
+      
         fetchData();
-    }, [user?.token, matricule]);
+      }, [user?.token, matricule]); // Dépendances correctes
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);

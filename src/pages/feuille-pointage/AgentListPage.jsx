@@ -377,9 +377,34 @@ const AgentListPage = () => {
                                 </button>
                             </div>
                         </div>
+                        <div className="row g-3 align-items-end mt-3">
+                            <div className="col-md-4">
+                                <label className="form-label fw-bold">Recherche</label>
+                                <div className="input-group">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={filters.searchQuery}
+                                        onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                                        placeholder="Rechercher..."
+                                        style={{ width: '200px' }}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => handleFilterChange('searchQuery', filters.searchQuery)}
+                                        style={{ width: '50px' }}
+                                    >
+                                        <i className="bx bx-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 1e4620950fa9532d5218fdb8f762a22b65433f18
                 {isFilterActive && filteredPointages.length === 0 ? (
                     <div className="alert alert-info mb-4">
                         <i className="bx bx-info-circle me-2"></i>
@@ -464,6 +489,7 @@ const AgentListPage = () => {
                                                 </span>
                                             </td>
                                             <td style={{ verticalAlign: 'middle' }}>
+<<<<<<< HEAD
                                                 {pointage.primes?.length
                                                     ? pointage.primes.map((prime, idx) => (
                                                         <span key={idx} className="badge bg-success me-1 mb-1">
@@ -480,6 +506,20 @@ const AgentListPage = () => {
                                                         </span>
                                                     ))
                                                     : <span className="text-muted">Aucune</span>}
+=======
+                                                {pointage.primes?.map((prime, idx) => (
+                                                    <span key={idx} className="badge bg-success me-1 mb-1">
+                                                        {typeof prime === 'object' ? prime.type : prime}
+                                                    </span>
+                                                )) || <span className="text-muted">Aucune</span>}
+                                            </td>
+                                            <td style={{ verticalAlign: 'middle' }}>
+                                                {pointage.absences?.map((absence, idx) => (
+                                                    <span key={idx} className="badge bg-danger me-1 mb-1">
+                                                        {typeof absence === 'object' ? absence.type : absence}
+                                                    </span>
+                                                )) || <span className="text-muted">Aucune</span>}
+>>>>>>> 1e4620950fa9532d5218fdb8f762a22b65433f18
                                             </td>
                                             <td style={{ verticalAlign: 'middle' }}>
                                                 {pointage.remarques ||
