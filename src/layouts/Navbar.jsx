@@ -1,12 +1,11 @@
 import { useAuth } from '../context/authContext';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate,useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import debounce from 'lodash.debounce';
 import io from 'socket.io-client';
-import { useNotifications } from '../context/NotificationContext';
-
+import { useNotifications } from '../context/NotificationContext';e
 const Navbar = () => {
   const { logout, user } = useAuth();
   const { notifications, fetchNotifications } = useNotifications();
@@ -16,6 +15,7 @@ const Navbar = () => {
   const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef(null);
   const navigate = useNavigate();
+const location = useLocation(); // Ajouter cette ligne
   const socketRef = useRef(null);
   const lastFetchRef = useRef(0);
 
@@ -125,7 +125,14 @@ const Navbar = () => {
   }, []);
 
   if (!user) return null;
-
+// Réinitialisation de la recherche quand on quitte la page
+useEffect(() => {
+  if (location.pathname !== '/utilisateurs') {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  }
+}, [location.pathname]);
   return (
     <nav className="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
       <div className="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
@@ -136,6 +143,7 @@ const Navbar = () => {
 
       <div className="navbar-nav-right d-flex align-items-center" ref={searchRef}>
         {/* Zone de recherche */}
+        {location.pathname === '/utilisateurs' && (
         <div className="d-flex align-items-center me-3">
           <div
             className="nav-item cursor-pointer me-2"
@@ -193,6 +201,7 @@ const Navbar = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* Notification + Menu utilisateur */}
         <div className="d-flex align-items-center ms-auto">

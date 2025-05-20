@@ -18,139 +18,172 @@ const AgentPresenceDetail = () => {
     const [filters, setFilters] = useState({
         periodType: 'none',
         selectedDate: null,
-        periode_debut: null,
-        periode_fin: null,
         sessionType: 'all'
     });
 
-    const PER_PAGE = 5;
+    const PER_PAGE = 10;
 
     const filteredPresences = useMemo(() => {
-        return feuilles.flatMap(feuille => feuille.historique || [])
-            .filter(presence => {
-                const datePresence = moment.utc(presence.date);
-                let periodMatch = true;
+        return feuilles.flatMap(feuille => {
+            // Récupérer les heures de travail de la feuille
+            const debutEmploi = feuille.date_debut_emploi ? 
+                moment(feuille.date_debut_emploi.split(' ')[1], 'HH:mm') : null;
+            const finEmploi = feuille.date_fin_emploi ? 
+                moment(feuille.date_fin_emploi.split(' ')[1], 'HH:mm') : null;
 
-                switch(filters.periodType) {
-                    case 'day':
-                        if(filters.selectedDate) {
-                            periodMatch = datePresence.isSame(moment.utc(filters.selectedDate), 'day');
-                        }
-                        break;
-                    case 'month':
-                        if(filters.selectedDate) {
-                            periodMatch = datePresence.isSame(moment.utc(filters.selectedDate), 'month');
-                        }
-                        break;
-                    case 'custom':
-                        if(filters.periode_debut && filters.periode_fin) {
-                            const start = moment.utc(filters.periode_debut).startOf('day');
-                            const end = moment.utc(filters.periode_fin).endOf('day');
-                            periodMatch = datePresence.isBetween(start, end, null, '[]');
-                        }
-                        break;
-                    default:
-                        periodMatch = true;
+            return (feuille.historique || []).map(presence => ({
+                ...presence,
+                // Ajouter les heures de travail à chaque présence
+                _debutEmploi: debutEmploi,
+                _finEmploi: finEmploi
+            }));
+        })
+        .filter(presence => {
+            // Correction: Utiliser la date locale pour éviter les problèmes de fuseau horaire
+            const datePresence = moment(presence.date);
+            let periodMatch = true;
+
+            // Filtrage période corrigé
+            if (filters.periodType === 'day' && filters.selectedDate) {
+                // Comparer uniquement les dates (jour/mois/année) sans l'heure
+                const selectedDay = moment(filters.selectedDate).startOf('day');
+                const presenceDay = datePresence.clone().startOf('day');
+                periodMatch = presenceDay.isSame(selectedDay);
+            } 
+            else if (filters.periodType === 'month' && filters.selectedDate) {
+                // Corriger le filtrage par mois: extraire le mois et l'année pour la comparaison
+                const selectedMonth = moment(filters.selectedDate).month();
+                const selectedYear = moment(filters.selectedDate).year();
+                periodMatch = (
+                    datePresence.month() === selectedMonth && 
+                    datePresence.year() === selectedYear
+                );
+            } 
+            else if (filters.periodType === 'custom' && filters.periode_debut && filters.periode_fin) {
+                const start = moment(filters.periode_debut).startOf('day');
+                const end = moment(filters.periode_fin).endOf('day');
+                periodMatch = datePresence.isBetween(start, end, null, '[]');
+            }
+
+            // Filtrage type de séance corrigé
+            let sessionMatch = true;
+            if (filters.sessionType !== 'all') {
+                // CORRECTION: Pour séance unique vérifier si la date est en juin ou juillet
+                if (filters.sessionType === 'unique') {
+                    // Vérifier si le mois est juin (5 en 0-index) ou juillet (6 en 0-index)
+                    const mois = datePresence.month();
+                    sessionMatch = mois === 5 || mois === 6; // Juin (5) ou Juillet (6)
                 }
-
-                let sessionMatch = true;
-                if(filters.sessionType !== 'all' && presence.heures) {
-                    sessionMatch = presence.heures.some(heure => {
-                        const [h, m] = heure.split(':').map(Number);
-                        const totalMinutes = h * 60 + m;
+                // Conserver la logique existante pour le type 'normal'
+                else if (filters.sessionType === 'normal') {
+                    // Horaire normal: Vérifier si au moins un pointage est entre 8h et 17h
+                    if (presence.heures && presence.heures.length > 0) {
+                        // Convertir les heures de pointage en moments
+                        const heuresPointage = presence.heures.map(h => 
+                            moment(h.substring(0, 5), 'HH:mm')
+                        );
                         
-                        return filters.sessionType === 'normal' ? 
-                            (totalMinutes >= 480 && totalMinutes <= 1020) : 
-                            (totalMinutes >= 360 && totalMinutes <= 780);
-                    });
+                        const debut8h = moment('08:00', 'HH:mm');
+                        const fin17h = moment('17:00', 'HH:mm');
+                        
+                        sessionMatch = heuresPointage.some(heure => 
+                            heure.isSameOrAfter(debut8h) && heure.isSameOrBefore(fin17h)
+                        );
+                    } else {
+                        sessionMatch = false;
+                    }
                 }
+            }
 
-                return periodMatch && sessionMatch;
-            })
-            .sort((a, b) => moment.utc(b.date).diff(moment.utc(a.date)));
+            return periodMatch && sessionMatch;
+        })
+        .sort((a, b) => moment(b.date).diff(moment(a.date))); // Tri décroissant
     }, [feuilles, filters]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const params = new URLSearchParams();
-                let periodeDebut, periodeFin;
+                setError(null);
 
-                switch(filters.periodType) {
-                    case 'day':
-                        if(filters.selectedDate) {
-                            periodeDebut = moment.utc(filters.selectedDate).format('YYYY-MM-DD');
-                            periodeFin = periodeDebut;
-                        }
-                        break;
-                    case 'month':
-                        if(filters.selectedDate) {
-                            periodeDebut = moment.utc(filters.selectedDate).startOf('month').format('YYYY-MM-DD');
-                            periodeFin = moment.utc(filters.selectedDate).endOf('month').format('YYYY-MM-DD');
-                        }
-                        break;
-                    case 'custom':
-                        if(filters.periode_debut && filters.periode_fin) {
-                            periodeDebut = moment.utc(filters.periode_debut).format('YYYY-MM-DD');
-                            periodeFin = moment.utc(filters.periode_fin).format('YYYY-MM-DD');
-                        }
-                        break;
+                if (!user?.token) {
+                    throw new Error("Non authentifié");
                 }
 
-                if(periodeDebut && periodeFin) {
-                    params.append('periode_debut', periodeDebut);
-                    params.append('periode_fin', periodeFin);
-                }
-
-                const res = await fetch(`http://localhost:5000/api/presences/${matricule}?${params.toString()}`, {
+                const res = await fetch(`http://localhost:5000/api/presences/${matricule}`, {
                     headers: {
                         'Authorization': `Bearer ${user.token}`,
                         'Content-Type': 'application/json'
                     }
                 });
 
-                if(!res.ok) throw new Error(await res.text());
-                
-                const data = await res.json();
-                setFeuilles(data.map(f => ({
-                    ...f,
-                    historique: f.historique?.sort((a, b) => 
-                        moment.utc(a.date).diff(moment.utc(b.date)))
-                })));
-                
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        setFeuilles([]);
+                        return;
+                    }
+                    throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+                }
+
+                const response = await res.json();
+
+                if (!response?.length) {
+                    setFeuilles([]);
+                    throw new Error("Aucune donnée trouvée dans la réponse");
+                }
+
+                // Fusionner toutes les historiques de toutes les feuilles
+                const mergedFeuilles = response.reduce((acc, feuille) => ({
+                    ...feuille,
+                    historique: [...acc.historique || [], ...feuille.historique || []]
+                }), {});
+
+                const formattedData = {
+                    ...mergedFeuilles,
+                    historique: (mergedFeuilles.historique || []).map(p => ({
+                        ...p,
+                        heures: p.heures?.map(h => h.substring(0, 5)) || ['--:--']
+                    }))
+                };
+
+                setFeuilles([formattedData]);
+
             } catch (err) {
+                console.error('Erreur:', err);
                 setError(err.message);
+                setFeuilles([]);
+
+                if (err.message.includes("403")) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Accès refusé',
+                        text: 'Vous ne pouvez accéder qu\'à vos propres données'
+                    });
+                }
             } finally {
                 setLoading(false);
             }
         };
-        
-        if(user?.token) fetchData();
-    }, [user?.token, matricule, filters]);
+
+        fetchData();
+    }, [user?.token, matricule]);
 
     const handleFilterChange = (name, value) => {
         setFilters(prev => ({
-            ...prev,
-            [name]: value,
-            ...(name === 'periodType' && { 
-                selectedDate: null,
-                periode_debut: null,
-                periode_fin: null 
-            })
+            ...prev, // Conserve les autres valeurs du state
+            [name]: value, // Met à jour la propriété spécifique
+            ...(name === 'periodType' && { selectedDate: null }) // Reset date si changement de type
         }));
-        setCurrentPage(0);
+        setCurrentPage(0); // Réinitialise toujours la pagination
     };
 
     const resetFilters = () => {
         setFilters({
-            periodType: 'none',
-            selectedDate: null,
-            periode_debut: null,
-            periode_fin: null,
-            sessionType: 'all'
+            periodType: 'none', // Valeur par défaut
+            selectedDate: null, // Reset date
+            sessionType: 'all'  // Valeur par défaut
         });
-        setCurrentPage(0);
+        setCurrentPage(0); // Réinitialise la pagination
     };
 
     const getTypePresence = (type) => {
@@ -243,79 +276,34 @@ const AgentPresenceDetail = () => {
                         </h6>
                     </div>
                     <div className="card-body">
-                        <div className="row g-3">
-                            <div className="col-md-3">
+                        <div className="row g-3 align-items-end">
+                            <div className="col-md-4">
                                 <label className="form-label fw-bold">Période</label>
-                                <select 
-                                    className="form-select"
-                                    value={filters.periodType}
-                                    onChange={(e) => handleFilterChange('periodType', e.target.value)}
-                                >
-                                    <option value="none">Sans filtre</option>
-                                    <option value="day">Jour</option>
-                                    <option value="month">Mois</option>
-                                    <option value="custom">Période personnalisée</option>
-                                </select>
+                                <div className="input-group">
+                                    <select 
+                                        className="form-select"
+                                        value={filters.periodType}
+                                        onChange={(e) => handleFilterChange('periodType', e.target.value)}
+                                    >
+                                        <option value="none">Aucun filtre</option>
+                                        <option value="day">Par jour</option>
+                                        <option value="month">Par mois</option>
+                                    </select>
+                                    {filters.periodType !== 'none' && (
+                                        <DatePicker
+                                            selected={filters.selectedDate}
+                                            onChange={(date) => handleFilterChange('selectedDate', date)}
+                                            className="form-control"
+                                            dateFormat={filters.periodType === 'month' ? "MM/yyyy" : "dd/MM/yyyy"}
+                                            showMonthYearPicker={filters.periodType === 'month'}
+                                            placeholderText={filters.periodType === 'month' ? "Sélectionner un mois" : "Sélectionner une date"}
+                                            isClearable
+                                        />
+                                    )}
+                                </div>
                             </div>
 
-                            {filters.periodType === 'day' && (
-                                <div className="col-md-3">
-                                    <label className="form-label fw-bold">Date spécifique</label>
-                                    <DatePicker
-                                        selected={filters.selectedDate}
-                                        onChange={(date) => handleFilterChange('selectedDate', date)}
-                                        className="form-control"
-                                        dateFormat="dd/MM/yyyy"
-                                        placeholderText="Sélectionner une date"
-                                        isClearable
-                                    />
-                                </div>
-                            )}
-
-                            {filters.periodType === 'month' && (
-                                <div className="col-md-3">
-                                    <label className="form-label fw-bold">Mois</label>
-                                    <DatePicker
-                                        selected={filters.selectedDate}
-                                        onChange={(date) => handleFilterChange('selectedDate', date)}
-                                        className="form-control"
-                                        dateFormat="MM/yyyy"
-                                        showMonthYearPicker
-                                        placeholderText="Sélectionner un mois"
-                                        isClearable
-                                    />
-                                </div>
-                            )}
-
-                            {filters.periodType === 'custom' && (
-                                <>
-                                    <div className="col-md-3">
-                                        <label className="form-label fw-bold">Date de début</label>
-                                        <DatePicker
-                                            selected={filters.periode_debut}
-                                            onChange={(date) => handleFilterChange('periode_debut', date)}
-                                            className="form-control"
-                                            dateFormat="dd/MM/yyyy"
-                                            placeholderText="Date de début"
-                                            isClearable
-                                        />
-                                    </div>
-                                    <div className="col-md-3">
-                                        <label className="form-label fw-bold">Date de fin</label>
-                                        <DatePicker
-                                            selected={filters.periode_fin}
-                                            onChange={(date) => handleFilterChange('periode_fin', date)}
-                                            className="form-control"
-                                            dateFormat="dd/MM/yyyy"
-                                            placeholderText="Date de fin"
-                                            minDate={filters.periode_debut}
-                                            isClearable
-                                        />
-                                    </div>
-                                </>
-                            )}
-
-                            <div className="col-md-3">
+                            <div className="col-md-4">
                                 <label className="form-label fw-bold">Type de séance</label>
                                 <select
                                     className="form-select"
@@ -323,12 +311,12 @@ const AgentPresenceDetail = () => {
                                     onChange={(e) => handleFilterChange('sessionType', e.target.value)}
                                 >
                                     <option value="all">Toutes les séances</option>
-                                    <option value="normal">Heures normales (8h-17h)</option>
-                                    <option value="unique">Séance spéciale (6h-14h)</option>
+                                    <option value="normal">Temps normal (8h-17h)</option>
+                                    <option value="unique">Séance unique (6h-14h)</option>
                                 </select>
                             </div>
 
-                            <div className="col-md-3 d-flex align-items-end">
+                            <div className="col-md-4">
                                 <button 
                                     className="btn btn-outline-primary w-100" 
                                     onClick={resetFilters}
@@ -354,6 +342,12 @@ const AgentPresenceDetail = () => {
                         </div>
                     ) : (
                         <>
+                            <div className="mb-3 text-muted small">
+                                <i className="bx bx-show me-1"></i>
+                                Affichage {currentPage * PER_PAGE + 1}-{Math.min((currentPage + 1) * PER_PAGE, filteredPresences.length)}
+                                sur {filteredPresences.length} résultats
+                            </div>
+                            
                             <div className="table-responsive">
                                 <table className="table table-bordered table-hover">
                                     <thead className="table-primary">
@@ -376,7 +370,7 @@ const AgentPresenceDetail = () => {
                                         {filteredPresences
                                             .slice(currentPage * PER_PAGE, (currentPage + 1) * PER_PAGE)
                                             .map((presence, index) => {
-                                                const date = moment.utc(presence.date);
+                                                const date = moment(presence.date);
                                                 const presenceType = getTypePresence(presence.type_pointage);
                                                 
                                                 return (

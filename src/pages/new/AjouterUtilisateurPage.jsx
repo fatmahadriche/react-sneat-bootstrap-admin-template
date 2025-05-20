@@ -87,6 +87,18 @@ const AjouterUtilisateurPage = () => {
             toast.error(err.response?.data?.message || "Erreur lors de la création");
         }
     };
+    const handleReset = () => {
+        setUserData({
+            matricule: "",
+            nom: "",
+            prenom: "",
+            email: "",
+            tel: "",
+            password: "",
+            role: "agent",
+        });
+        setErrors({});
+    };
 
     return (
         <div className="card mb-4 custom-form-card">
@@ -224,7 +236,11 @@ const AjouterUtilisateurPage = () => {
                             <i className="bx bx-plus-circle me-2"></i>
                             Ajouter
                         </button>
-                        <button type="reset" className="btn btn-outline-secondary btn-cancel">
+                        <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-cancel"
+                            onClick={handleReset}
+                        >
                             <i className="bx bx-x-circle me-2"></i>
                             Annuler
                         </button>

@@ -21,7 +21,7 @@ const AgentFeuillePointage = () => {
         sessionType: 'all'
     });
     const componentRef = useRef(null);
-    const PER_PAGE = 4;
+    const PER_PAGE = 10;
 
     const filteredPointages = useMemo(() => {
         if (!feuille) return [];
@@ -33,7 +33,7 @@ const AgentFeuillePointage = () => {
             } else if (filters.periodType === 'month' && filters.selectedDate) {
                 periodMatch = datePointage.isSame(filters.selectedDate, 'month');
             }
-            
+
             let sessionMatch = true;
             if (filters.sessionType !== 'all' && feuille.date_debut_emploi && feuille.date_fin_emploi) {
                 const debutEmploi = moment(feuille.date_debut_emploi.split(' ')[1], 'HH:mm');
@@ -59,37 +59,77 @@ const AgentFeuillePointage = () => {
                 setError(null);
 
                 const res = await fetch(`http://localhost:5000/api/pointages/${matricule}`, {
-                    headers: { 
+                    headers: {
                         'Authorization': `Bearer ${user.token}`,
                         'Content-Type': 'application/json'
                     }
                 });
 
                 if (!res.ok) throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-                
+
                 const response = await res.json();
-                
+
                 if (!response.success || !response.data?.length) {
                     setFeuille(null);
                     throw new Error("Aucune donnée trouvée");
                 }
 
+                // Fusionner toutes les feuilles de tous les mois
+                const mergedFeuilles = response.data.reduce((acc, feuille) => ({
+                    ...feuille,
+                    pointages: [...acc.pointages || [], ...feuille.pointages || []],
+                    primes: [...acc.primes || [], ...feuille.primes || []],
+                    absences: [...acc.absences || [], ...feuille.absences || []],
+                    remarques: feuille.remarques || acc.remarques
+                }), {});
+
                 const formattedData = {
-                    ...response.data[0],
-                    pointages: (response.data[0].pointages || []).map(p => ({
-                        ...p,
-                        matin: p.matin?.substring(0, 5) || '--:--',
-                        apres_midi: p.apres_midi?.substring(0, 5) || '--:--'
-                    }))
+                    ...mergedFeuilles,
+                    pointages: (mergedFeuilles.pointages || []).map(p => {
+                        const parseTime = (time) => {
+                            if (!time) return '--:--';
+                            const formats = ['HH:mm', 'HH:mm:ss', 'HHmm', 'H:mm'];
+                            const validFormat = formats.find(format => moment(time, format, true).isValid());
+                            return validFormat ? moment(time, validFormat).format('HH:mm') : '--:--';
+                        };
+
+                        const matin = parseTime(p.matin);
+                        const apres_midi = parseTime(p.apres_midi);
+
+                        // Nouvelle logique de statut avec gestion des congés
+                        let status = 'Présent';
+                        const hasConge = (p.absences || []).some(absence => {
+                            if (typeof absence === 'object') {
+                                return absence.type?.toLowerCase().includes('congé');
+                            }
+                            return absence.toLowerCase().includes('congé');
+                        });
+
+                        if (hasConge) {
+                            status = 'En congé';
+                        } else if (p.absences?.length > 0) {
+                            status = 'Absent';
+                        } else if (matin === '--:--' && apres_midi === '--:--') {
+                            status = 'Absent';
+                        }
+
+                        return {
+                            ...p,
+                            matin,
+                            apres_midi,
+                            status,
+                            primes: p.primes || [],
+                            absences: p.absences || [],
+                            remarques: p.remarques || ''
+                        };
+                    })
                 };
-
                 setFeuille(formattedData);
-
             } catch (err) {
                 console.error('Erreur:', err);
                 setError(err.message);
                 setFeuille(null);
-                
+
                 if (err.message.includes("403")) {
                     Swal.fire({
                         icon: 'error',
@@ -97,7 +137,7 @@ const AgentFeuillePointage = () => {
                         text: 'Vous ne pouvez accéder qu\'à votre propre feuille de pointage'
                     });
                 }
-                
+
             } finally {
                 setLoading(false);
             }
@@ -105,6 +145,7 @@ const AgentFeuillePointage = () => {
 
         if (user?.token) fetchData();
     }, [user?.token, matricule]);
+
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);
@@ -128,17 +169,13 @@ const AgentFeuillePointage = () => {
         setCurrentPage(0);
     };
 
-    const exportToPDF = () => {
-        const input = componentRef.current;
-        html2canvas(input)
-            .then((canvas) => {
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgWidth = 210;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                pdf.save(`feuille-pointage-${matricule}.pdf`);
-            });
+    const getStatusBadgeStyle = (status) => {
+        switch (status) {
+            case 'Présent': return 'bg-success';
+            case 'Absent': return 'bg-danger';
+            case 'En congé': return 'bg-primary';
+            default: return 'bg-secondary';
+        }
     };
 
     if (loading) {
@@ -188,9 +225,7 @@ const AgentFeuillePointage = () => {
                         </span>
                     </div>
                 </div>
-                <button onClick={exportToPDF} className="btn btn-primary">
-                    <i className="bx bx-download me-1"></i> Exporter en PDF
-                </button>
+
             </div>
 
             <div className="card-body" ref={componentRef}>
@@ -266,7 +301,7 @@ const AgentFeuillePointage = () => {
                     ) : (
                         <>
                             <div className="table-responsive">
-                                <table className="table table-bordered table-hover">
+                                <table className="table table-bordered table-hover" style={{ minWidth: '1500px' }}>
                                     <thead className="table-primary">
                                         <tr>
                                             <th>Date</th>
@@ -274,6 +309,11 @@ const AgentFeuillePointage = () => {
                                             <th>Heure Fin</th>
                                             <th>Pointage Matin</th>
                                             <th>Pointage Après-midi</th>
+                                            {/* Nouvelles colonnes */}
+                                            <th>Statut</th>
+                                            <th>Primes</th>
+                                            <th>Absences</th>
+                                            <th>Remarques</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -284,6 +324,32 @@ const AgentFeuillePointage = () => {
                                                 <td>{feuille.date_fin_emploi.split(' ')[1].substring(0, 5)}</td>
                                                 <td className="text-success fw-bold">{pointage.matin}</td>
                                                 <td className="text-danger fw-bold">{pointage.apres_midi}</td>
+
+                                                {/* Nouvelles cellules */}
+                                                <td>
+                                                    <span className={`badge ${getStatusBadgeStyle(pointage.status)}`}>
+                                                        {pointage.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {pointage.primes?.length ? (
+                                                        pointage.primes.map((prime, idx) => (
+                                                            <span key={idx} className="badge bg-success me-1 mb-1">
+                                                                {typeof prime === 'object' ? prime.type : prime}
+                                                            </span>
+                                                        ))
+                                                    ) : 'Aucune'}
+                                                </td>
+                                                <td>
+                                                    {pointage.absences?.length ? (
+                                                        pointage.absences.map((absence, idx) => (
+                                                            <span key={idx} className="badge bg-danger me-1 mb-1">
+                                                                {typeof absence === 'object' ? absence.type : absence}
+                                                            </span>
+                                                        ))
+                                                    ) : 'Aucune'}
+                                                </td>
+                                                <td>{pointage.remarques || 'Aucune'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -314,66 +380,11 @@ const AgentFeuillePointage = () => {
                     )}
                 </div>
 
-                <div className="mb-4">
-                    <h6 className="p-3 mb-3 bg-light border-bottom">
-                        <i className="bx bx-money me-2 text-muted"></i>
-                        PRIMES
-                    </h6>
-                    <div className="card card-body">
-                        {feuille.primes?.length > 0 ? (
-                            <ul className="list-group">
-                                {feuille.primes.map((prime, index) => (
-                                    <li key={index} className="list-group-item">
-                                        {prime}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <span className="text-muted">
-                                <i className="bx bx-info-circle me-2"></i>
-                                Aucune prime attribuée
-                            </span>
-                        )}
-                    </div>
-                </div>
 
-                <div className="mb-4">
-                    <h6 className="p-3 mb-3 bg-light border-bottom">
-                        <i className="bx bx-calendar-minus me-2 text-muted"></i>
-                        ABSENCES
-                    </h6>
-                    <div className="card card-body">
-                        {feuille.absences?.length > 0 ? (
-                            <ul className="list-group">
-                                {feuille.absences.map((absence, index) => (
-                                    <li key={index} className="list-group-item">
-                                        {absence}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <span className="text-muted">
-                                <i className="bx bx-info-circle me-2"></i>
-                                Aucune absence enregistrée
-                            </span>
-                        )}
-                    </div>
-                </div>
 
-                <div className="mb-4">
-                    <h6 className="p-3 mb-3 bg-light border-bottom">
-                        <i className="bx bx-comment me-2 text-muted"></i>
-                        REMARQUES
-                    </h6>
-                    <div className="card card-body">
-                        {feuille.remarques || (
-                            <span className="text-muted">
-                                <i className="bx bx-info-circle me-2"></i>
-                                Aucune remarque
-                            </span>
-                        )}
-                    </div>
-                </div>
+
+
+
             </div>
         </div>
     );
