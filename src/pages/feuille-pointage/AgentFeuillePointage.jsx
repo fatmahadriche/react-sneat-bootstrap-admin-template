@@ -84,46 +84,76 @@ const AgentFeuillePointage = () => {
                 }), {});
 
                 const formattedData = {
-                    ...mergedFeuilles,
-                    pointages: (mergedFeuilles.pointages || []).map(p => {
-                        const parseTime = (time) => {
-                            if (!time) return '--:--';
-                            const formats = ['HH:mm', 'HH:mm:ss', 'HHmm', 'H:mm'];
-                            const validFormat = formats.find(format => moment(time, format, true).isValid());
-                            return validFormat ? moment(time, validFormat).format('HH:mm') : '--:--';
-                        };
+    ...mergedFeuilles,
+    pointages: (mergedFeuilles.pointages || []).map(p => {
+        const parseTime = (time) => {
+            if (!time) return '--:--';
+            const formats = ['HH:mm', 'HH:mm:ss', 'HHmm', 'H:mm'];
+            const validFormat = formats.find(format => moment(time, format, true).isValid());
+            return validFormat ? moment(time, validFormat).format('HH:mm') : '--:--';
+        };
 
-                        const matin = parseTime(p.matin);
-                        const apres_midi = parseTime(p.apres_midi);
+        const matin = parseTime(p.matin);
+        const apres_midi = parseTime(p.apres_midi);
+        const datePointage = moment(p.date, 'YYYY-MM-DD'); // Adaptez le format selon vos données
 
-                        // Nouvelle logique de statut avec gestion des congés
-                        let status = 'Présent';
-                        const hasConge = (p.absences || []).some(absence => {
-                            if (typeof absence === 'object') {
-                                return absence.type?.toLowerCase().includes('congé');
-                            }
-                            return absence.toLowerCase().includes('congé');
-                        });
+        // ---------------------------------------------------------------
+        // NOUVELLE LOGIQUE DE STATUT (CONGÉS APPROUVÉS PRIORITAIRES)
+        // ---------------------------------------------------------------
+        let status = 'Présent';
 
-                        if (hasConge) {
-                            status = 'En congé';
-                        } else if (p.absences?.length > 0) {
-                            status = 'Absent';
-                        } else if (matin === '--:--' && apres_midi === '--:--') {
-                            status = 'Absent';
-                        }
+        // 1. Vérifier les congés approuvés dans les absences globales
+        const congeApprouve = mergedFeuilles.absences?.some(absence => {
+            if (
+                typeof absence === 'object' &&
+                absence.statut?.toLowerCase() === 'approuvé' &&
+                absence.type?.toLowerCase().includes('congé')
+            ) {
+                try {
+                    const start = moment(absence.date_debut, 'DD/MM/YYYY');
+                    const end = moment(absence.date_fin, 'DD/MM/YYYY').endOf('day');
+                    return datePointage.isBetween(start, end, null, '[]');
+                } catch (e) {
+                    console.error('Erreur de parsing de date:', absence);
+                    return false;
+                }
+            }
+            return false;
+        });
 
-                        return {
-                            ...p,
-                            matin,
-                            apres_midi,
-                            status,
-                            primes: p.primes || [],
-                            absences: p.absences || [],
-                            remarques: p.remarques || ''
-                        };
-                    })
-                };
+        // 2. Si en congé approuvé, priorité absolue
+        if (congeApprouve) {
+            status = 'En congé';
+        } 
+        // 3. Sinon vérifier les absences locales
+        else {
+            const hasCongeLocal = (p.absences || []).some(absence => {
+                if (typeof absence === 'object') {
+                    return absence.type?.toLowerCase().includes('congé');
+                }
+                return absence.toLowerCase().includes('congé');
+            });
+
+            if (hasCongeLocal) {
+                status = 'En congé';
+            } else if (p.absences?.length > 0) {
+                status = 'Absent';
+            } else if (matin === '--:--' && apres_midi === '--:--') {
+                status = 'Absent';
+            }
+        }
+
+        return {
+            ...p,
+            matin,
+            apres_midi,
+            status,
+            primes: p.primes || [],
+            absences: p.absences || [],
+            remarques: p.remarques || ''
+        };
+    })
+};
                 setFeuille(formattedData);
             } catch (err) {
                 console.error('Erreur:', err);

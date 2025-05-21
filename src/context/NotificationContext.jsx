@@ -27,20 +27,29 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   const markAsRead = useCallback(async (id, user) => {
-    if (!user?.token) return;
-    
-    try {
-      await axios.patch(
-        `${import.meta.env.VITE_APP_API_URL}/api/notifications/${id}/mark-read`, 
-        {}, 
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
-      setNotifications(prev => prev.filter(n => n._id !== id));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      throw error;
-    }
-  }, []);
+        if (!user?.token) return;
+        
+        try {
+            await axios.patch(
+                `${import.meta.env.VITE_APP_API_URL}/api/notifications/${id}/mark-read`, 
+                {}, 
+                { headers: { Authorization: `Bearer ${user.token}` } }
+            );
+            // Mise à jour optimiste de l'état
+            setNotifications(prev => 
+                prev.map(n => 
+                    n._id === id 
+                        ? { ...n, recipients: n.recipients.map(r => 
+                            r.user === user.id ? { ...r, read: true } : r
+                        )} 
+                        : n
+                )
+            );
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            throw error;
+        }
+    }, []);
 
   return (
     <NotificationContext.Provider value={{ 

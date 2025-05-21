@@ -5,7 +5,9 @@ import { useNavigate,useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import debounce from 'lodash.debounce';
 import io from 'socket.io-client';
-import { useNotifications } from '../context/NotificationContext';e
+import { useNotifications } from '../context/NotificationContext';
+import moment from 'moment';
+
 const Navbar = () => {
   const { logout, user } = useAuth();
   const { notifications, fetchNotifications } = useNotifications();
@@ -220,35 +222,35 @@ useEffect(() => {
                 </div>
               </div>
               <div className="dropdown-list-content dropdown-list-icons">
-                {notifications.slice(0, 5).map((notification) => (
-                  <a
-                    key={notification._id}
-                    href="#"
-                    className="dropdown-item d-flex align-items-center"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate('/account/notifications');
-                    }}
-                  >
-                    <div className="list-item d-flex align-items-start">
-                      <div className="me-3">
-                        <div className="avatar">
-                          <div className="avatar-initial bg-label-primary rounded">
-                            <i className="bx bx-envelope"></i>
-                          </div>
+    {notifications.slice(0, 5).map((notification) => (
+        <a
+            key={notification._id}
+            href="#"
+            className="dropdown-item d-flex align-items-center"
+            onClick={(e) => {
+                e.preventDefault();
+                navigate('/account/notifications');
+            }}
+        >
+            <div className="list-item d-flex align-items-start">
+                <div className="me-3">
+                    <div className="avatar">
+                        <div className={`avatar-initial bg-${notification.type === 'conge' ? 'warning' : 'danger'} rounded`}>
+                            <i className={`bx ${notification.type === 'conge' ? 'bx-calendar-event' : 'bx-calendar-x'}`}></i>
                         </div>
-                      </div>
-                      <div className="list-item-body flex-grow-1">
-                        <p className="media-heading">
-                          <span className="fw-bolder">{notification.message}</span>
-                        </p>
-                        <small className="text-muted">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </small>
-                      </div>
                     </div>
-                  </a>
-                ))}
+                </div>
+                <div className="list-item-body flex-grow-1">
+                    <p className="media-heading">
+                        <span className="fw-bolder">{notification.message}</span>
+                    </p>
+                    <small className="text-muted">
+                        {moment(notification.createdAt).fromNow()}
+                    </small>
+                </div>
+            </div>
+        </a>
+    ))}
                 {notifications.length > 5 && (
                   <div className="dropdown-footer text-center py-2">
                     <a
