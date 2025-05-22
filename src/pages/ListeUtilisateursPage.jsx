@@ -94,96 +94,134 @@ useEffect(() => {
         <>
             <style>{`
                 .delete-modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1050;
-                }
-                
-                .delete-modal-content {
-                    background: white;
-                    border-radius: 8px;
-                    width: 100%;
-                    max-width: 500px;
-                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-                    animation: modalFadeIn 0.3s ease;
-                }
-                
-                @keyframes modalFadeIn {
-                    from { opacity: 0; transform: translateY(-20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                
-                .delete-modal-header {
-                    padding: 1.25rem;
-                    border-bottom: 1px solid #e9ecef;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                .delete-modal-title {
-                    margin: 0;
-                    font-size: 1.25rem;
-                    color: #2a5c7d;
-                    font-weight: 600;
-                }
-                
-                .delete-modal-close {
-                    background: none;
-                    border: none;
-                    font-size: 1.5rem;
-                    cursor: pointer;
-                    color: #6c757d;
-                }
-                
-                .delete-modal-body {
-                    padding: 1.5rem;
-                    font-size: 1.05rem;
-                    color: #495057;
-                }
-                
-                .delete-modal-footer {
-                    padding: 1rem;
-                    border-top: 1px solid #e9ecef;
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 0.75rem;
-                }
-                
-                .delete-modal-cancel {
-                    padding: 0.5rem 1rem;
-                    background: #6c757d;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .delete-modal-cancel:hover {
-                    background: #5a6268;
-                }
-                
-                .delete-modal-confirm {
-                    padding: 0.5rem 1rem;
-                    background: #dc3545;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .delete-modal-confirm:hover {
-                    background: #bb2d3b;
-                }
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+}
+
+.delete-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.3s ease;
+    z-index: 2001;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.delete-modal-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.delete-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #2a5c7d;
+    font-weight: 600;
+}
+
+.delete-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    transition: color 0.2s ease;
+}
+
+.delete-modal-close:hover {
+    color: #dc3545;
+}
+
+.delete-modal-body {
+    padding: 1.5rem;
+    font-size: 1.05rem;
+    color: #495057;
+}
+
+.delete-modal-footer {
+    padding: 1rem;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.delete-modal-cancel {
+    padding: 0.75rem 1.5rem;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.delete-modal-cancel:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.delete-modal-confirm {
+    padding: 0.75rem 1.5rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.delete-modal-confirm:hover {
+    background: #bb2d3b;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Styles responsifs */
+@media (max-width: 576px) {
+    .delete-modal-content {
+        margin: 1rem;
+        max-width: calc(100% - 2rem);
+    }
+    
+    .delete-modal-footer {
+        flex-direction: column;
+    }
+    
+    .delete-modal-cancel,
+    .delete-modal-confirm {
+        width: 100%;
+        justify-content: center;
+    }
+}
             `}</style>
 
             <div className="card shadow-sm">

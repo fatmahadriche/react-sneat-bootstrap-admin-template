@@ -26,30 +26,27 @@ export const NotificationProvider = ({ children }) => {
     return () => controller.abort();
   }, []);
 
-  const markAsRead = useCallback(async (id, user) => {
-        if (!user?.token) return;
-        
-        try {
-            await axios.patch(
-                `${import.meta.env.VITE_APP_API_URL}/api/notifications/${id}/mark-read`, 
-                {}, 
-                { headers: { Authorization: `Bearer ${user.token}` } }
-            );
-            // Mise à jour optimiste de l'état
-            setNotifications(prev => 
-                prev.map(n => 
-                    n._id === id 
-                        ? { ...n, recipients: n.recipients.map(r => 
-                            r.user === user.id ? { ...r, read: true } : r
-                        )} 
-                        : n
-                )
-            );
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-            throw error;
-        }
-    }, []);
+const markAsRead = useCallback(async (id, user) => {
+  if (!user?.token) return;
+  
+  try {
+    // Mise à jour optimiste : retirer la notification de la liste
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    
+    await axios.patch(
+      `${import.meta.env.VITE_APP_API_URL}/api/notifications/${id}/mark-read`, 
+      {}, 
+      { headers: { Authorization: `Bearer ${user.token}` } }
+    );
+
+    // Ne pas appeler fetchNotifications ici
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    // En cas d'erreur, rafraîchir pour récupérer l'état correct
+    await fetchNotifications(user);
+    throw error;
+  }
+}, [fetchNotifications]);
 
   return (
     <NotificationContext.Provider value={{ 

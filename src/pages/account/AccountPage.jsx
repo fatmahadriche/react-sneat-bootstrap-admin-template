@@ -6,7 +6,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const AccountPage = () => {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser, logout } = useAuth(); // Ajout de logout
     const [userData, setUserData] = useState(null);
     const [originalData, setOriginalData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -64,20 +64,38 @@ export const AccountPage = () => {
                 throw new Error("Le mot de passe actuel est requis");
             }
 
+            // Vérifier si le mot de passe va être modifié
+            const isPasswordChange = updatedData.newPassword && updatedData.newPassword.trim() !== '';
+
             // Envoi des données mises à jour au backend
             const response = await api.put("/auth/me", updatedData);
 
             if (response.data.message === "Aucun changement détecté") {
                 toast.info("Aucune modification effectuée");
             } else {
-                updateUser(response.data);
-                setUserData(response.data);
-                setOriginalData(response.data);
-                toast.success("Profil mis à jour !");
+                // Si le mot de passe a été changé, déconnecter l'utilisateur
+                if (isPasswordChange) {
+                    toast.success("Mot de passe modifié avec succès ! Veuillez vous reconnecter.", {
+                        autoClose: 3000,
+                        onClose: () => {
+                            // Déconnecter l'utilisateur après 3 secondes
+                            setTimeout(() => {
+                                logout();
+                            }, 100);
+                        }
+                    });
+                    return; // Sortir de la fonction pour éviter les autres mises à jour
+                } else {
+                    // Mise à jour normale (sans changement de mot de passe)
+                    updateUser(response.data);
+                    setUserData(response.data);
+                    setOriginalData(response.data);
+                    toast.success("Profil mis à jour !");
+                }
             }
 
             setIsEditing(false);
-            setHasChanges(false); // Réinitialiser les modifications
+            setHasChanges(false);
         } catch (error) {
             const message = error.response?.data?.message || error.message;
             toast.error(message);
@@ -130,7 +148,7 @@ export const AccountPage = () => {
             {/* Style personnalisé pour le bouton Annuler */}
             <style>{`
                 .btn-cancel-custom {
-                    background-color: #dc3545; /* Rouge vif */
+                    background-color: #dc3545;
                     color: white;
                     border: none;
                     font-weight: 500;
@@ -274,8 +292,10 @@ export const AccountPage = () => {
                                             name="currentPassword"
                                             className="form-control"
                                             placeholder="••••••••"
-                                            required={!!userData.newPassword}
                                         />
+                                        <small className="text-muted">
+                                            Requis seulement si vous voulez changer votre mot de passe
+                                        </small>
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">
@@ -288,6 +308,9 @@ export const AccountPage = () => {
                                             placeholder="••••••••"
                                             minLength="6"
                                         />
+                                        <small className="text-muted">
+                                            Laissez vide pour conserver le mot de passe actuel
+                                        </small>
                                     </div>
                                 </>
                             )}
