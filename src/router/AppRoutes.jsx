@@ -166,7 +166,7 @@ const AppRoutes = () => {
   }
 />
 <Route
-  path="/heures-supplementaires/:userId"
+  path="/heures-supplementaires/user/:userId"
   element={
     <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
       <HeuresSupplementairesDetailPage />

@@ -83,77 +83,34 @@ const AgentFeuillePointage = () => {
                     remarques: feuille.remarques || acc.remarques
                 }), {});
 
+                // CORRECTION PRINCIPALE : Utiliser le statut de la base de données
                 const formattedData = {
-    ...mergedFeuilles,
-    pointages: (mergedFeuilles.pointages || []).map(p => {
-        const parseTime = (time) => {
-            if (!time) return '--:--';
-            const formats = ['HH:mm', 'HH:mm:ss', 'HHmm', 'H:mm'];
-            const validFormat = formats.find(format => moment(time, format, true).isValid());
-            return validFormat ? moment(time, validFormat).format('HH:mm') : '--:--';
-        };
+                    ...mergedFeuilles,
+                    pointages: (mergedFeuilles.pointages || []).map(p => {
+                        const parseTime = (time) => {
+                            if (!time) return '--:--';
+                            const formats = ['HH:mm', 'HH:mm:ss', 'HHmm', 'H:mm'];
+                            const validFormat = formats.find(format => moment(time, format, true).isValid());
+                            return validFormat ? moment(time, validFormat).format('HH:mm') : '--:--';
+                        };
 
-        const matin = parseTime(p.matin);
-        const apres_midi = parseTime(p.apres_midi);
-        const datePointage = moment(p.date, 'YYYY-MM-DD'); // Adaptez le format selon vos données
+                        const matin = parseTime(p.matin);
+                        const apres_midi = parseTime(p.apres_midi);
 
-        // ---------------------------------------------------------------
-        // NOUVELLE LOGIQUE DE STATUT (CONGÉS APPROUVÉS PRIORITAIRES)
-        // ---------------------------------------------------------------
-        let status = 'Présent';
+                        // UTILISER DIRECTEMENT LE STATUT DE LA BASE DE DONNÉES
+                        // Ne pas recalculer, faire confiance au backend
+                        return {
+                            ...p,
+                            matin,
+                            apres_midi,
+                            status: p.status || 'Absent', // Utiliser le statut venant de la DB
+                            primes: p.primes || [],
+                            absences: p.absences || [],
+                            remarques: p.remarques || ''
+                        };
+                    })
+                };
 
-        // 1. Vérifier les congés approuvés dans les absences globales
-        const congeApprouve = mergedFeuilles.absences?.some(absence => {
-            if (
-                typeof absence === 'object' &&
-                absence.statut?.toLowerCase() === 'approuvé' &&
-                absence.type?.toLowerCase().includes('congé')
-            ) {
-                try {
-                    const start = moment(absence.date_debut, 'DD/MM/YYYY');
-                    const end = moment(absence.date_fin, 'DD/MM/YYYY').endOf('day');
-                    return datePointage.isBetween(start, end, null, '[]');
-                } catch (e) {
-                    console.error('Erreur de parsing de date:', absence);
-                    return false;
-                }
-            }
-            return false;
-        });
-
-        // 2. Si en congé approuvé, priorité absolue
-        if (congeApprouve) {
-            status = 'En congé';
-        } 
-        // 3. Sinon vérifier les absences locales
-        else {
-            const hasCongeLocal = (p.absences || []).some(absence => {
-                if (typeof absence === 'object') {
-                    return absence.type?.toLowerCase().includes('congé');
-                }
-                return absence.toLowerCase().includes('congé');
-            });
-
-            if (hasCongeLocal) {
-                status = 'En congé';
-            } else if (p.absences?.length > 0) {
-                status = 'Absent';
-            } else if (matin === '--:--' && apres_midi === '--:--') {
-                status = 'Absent';
-            }
-        }
-
-        return {
-            ...p,
-            matin,
-            apres_midi,
-            status,
-            primes: p.primes || [],
-            absences: p.absences || [],
-            remarques: p.remarques || ''
-        };
-    })
-};
                 setFeuille(formattedData);
             } catch (err) {
                 console.error('Erreur:', err);
@@ -175,7 +132,6 @@ const AgentFeuillePointage = () => {
 
         if (user?.token) fetchData();
     }, [user?.token, matricule]);
-
 
     const handlePageClick = ({ selected }) => {
         setCurrentPage(selected);
@@ -255,7 +211,6 @@ const AgentFeuillePointage = () => {
                         </span>
                     </div>
                 </div>
-
             </div>
 
             <div className="card-body" ref={componentRef}>
@@ -339,7 +294,6 @@ const AgentFeuillePointage = () => {
                                             <th>Heure Fin</th>
                                             <th>Pointage Matin</th>
                                             <th>Pointage Après-midi</th>
-                                            {/* Nouvelles colonnes */}
                                             <th>Statut</th>
                                             <th>Primes</th>
                                             <th>Absences</th>
@@ -354,8 +308,6 @@ const AgentFeuillePointage = () => {
                                                 <td>{feuille.date_fin_emploi.split(' ')[1].substring(0, 5)}</td>
                                                 <td className="text-success fw-bold">{pointage.matin}</td>
                                                 <td className="text-danger fw-bold">{pointage.apres_midi}</td>
-
-                                                {/* Nouvelles cellules */}
                                                 <td>
                                                     <span className={`badge ${getStatusBadgeStyle(pointage.status)}`}>
                                                         {pointage.status}
@@ -409,12 +361,6 @@ const AgentFeuillePointage = () => {
                         </>
                     )}
                 </div>
-
-
-
-
-
-
             </div>
         </div>
     );

@@ -138,14 +138,15 @@ render: (_, record) => (
       <Button 
           type="link" 
           icon={<EyeOutlined style={{ color: '#13c2c2' }} />} 
-          onClick={() => navigate(`/heures-supplementaires/${record._id}`, { 
-              state: { 
-                  filters: { 
-                      mois: record.mois, 
-                      annee: record.annee 
-                  } 
-              } 
-          })}
+          // Dans HeuresSupplementairesPage.jsx, colonne "Actions"
+onClick={() => navigate(`/heures-supplementaires/user/${record.user}`, { 
+  state: { 
+    filters: { 
+      mois: record.mois, 
+      annee: record.annee 
+    } 
+  } 
+})}
       />
   </Tooltip>
 )
@@ -174,45 +175,6 @@ render: (_, record) => (
     }
   };
 
-  const handleExportExcel = async () => {
-    try {
-      const blob = await exportHeuresSupplementaires({
-        ...filters,
-        format: 'excel'
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `heures_supplementaires_${new Date().toISOString()}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      message.success('Export Excel réussi');
-    } catch (error) {
-      message.error('Erreur lors de l\'export Excel');
-      console.error('Export error:', error);
-    }
-  };
-
-  const handleExportPDF = async () => {
-    try {
-      const blob = await exportHeuresSupplementaires({
-        ...filters,
-        format: 'pdf'
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `heures_supplementaires_${new Date().toISOString()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      message.success('Export PDF réussi');
-    } catch (error) {
-      message.error('Erreur lors de l\'export PDF');
-      console.error('Export error:', error);
-    }
-  };
 
   useEffect(() => {
     fetchData();
@@ -254,20 +216,7 @@ render: (_, record) => (
       }
       extra={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Tooltip title="Exporter en Excel">
-            <Button 
-              icon={<FileExcelOutlined style={{ color: '#52c41a' }} />} 
-              onClick={handleExportExcel}
-              disabled={loading}
-            />
-          </Tooltip>
-          <Tooltip title="Exporter en PDF">
-            <Button 
-              icon={<FilePdfOutlined style={{ color: '#f5222d' }} />} 
-              onClick={handleExportPDF}
-              disabled={loading}
-            />
-          </Tooltip>
+         
           <Tooltip title="Actualiser">
             <Button 
               icon={<SyncOutlined />} 

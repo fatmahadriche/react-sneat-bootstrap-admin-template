@@ -160,7 +160,9 @@
       };
 
       const backendRole = user.role;
-      const isManagement = ['CHEFCENTRE', 'GESTIONNAIRE', 'ADMIN'].includes(backendRole);
+      const isManagement = ['CHEFCENTRE', 'GESTIONNAIRE', 'ADMIN']
+  .map(role => role.toUpperCase())
+  .includes(backendRole?.toUpperCase());
 
       console.log('[RENDER] Current state:', {
         loading,

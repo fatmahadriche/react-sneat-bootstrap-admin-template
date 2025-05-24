@@ -102,68 +102,83 @@ const AgentPresenceDetail = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
+    try {
+        setLoading(true);
+        setError(null);
 
-                if (!user?.token) {
-                    throw new Error("Non authentifié");
-                }
+        if (!user?.token) {
+            throw new Error("Non authentifié");
+        }
 
-                const res = await fetch(`http://localhost:5000/api/presences/${matricule}`, {
-                    headers: {
-                        'Authorization': `Bearer ${user.token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!res.ok) {
-                    if (res.status === 404) {
-                        setFeuilles([]);
-                        return;
-                    }
-                    throw new Error(`Erreur HTTP! Statut: ${res.status}`);
-                }
-
-                const response = await res.json();
-
-                if (!response?.length) {
-                    setFeuilles([]);
-                    throw new Error("Aucune donnée trouvée dans la réponse");
-                }
-
-                // Fusionner toutes les historiques de toutes les feuilles
-                const mergedFeuilles = response.reduce((acc, feuille) => ({
-                    ...feuille,
-                    historique: [...acc.historique || [], ...feuille.historique || []]
-                }), {});
-
-                const formattedData = {
-                    ...mergedFeuilles,
-                    historique: (mergedFeuilles.historique || []).map(p => ({
-                        ...p,
-                        heures: p.heures?.map(h => h.substring(0, 5)) || ['--:--']
-                    }))
-                };
-
-                setFeuilles([formattedData]);
-
-            } catch (err) {
-                console.error('Erreur:', err);
-                setError(err.message);
-                setFeuilles([]);
-
-                if (err.message.includes("403")) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Accès refusé',
-                        text: 'Vous ne pouvez accéder qu\'à vos propres données'
-                    });
-                }
-            } finally {
-                setLoading(false);
+        const res = await fetch(`http://localhost:5000/api/presences/${matricule}`, {
+            headers: {
+                'Authorization': `Bearer ${user.token}`,
+                'Content-Type': 'application/json'
             }
+        });
+
+        if (!res.ok) {
+            if (res.status === 404) {
+                setFeuilles([]);
+                return;
+            }
+            throw new Error(`Erreur HTTP! Statut: ${res.status}`);
+        }
+
+        const response = await res.json();
+        
+        // FIX: Handle the correct response structure
+        let feuillesData = [];
+        
+        if (response.success && response.data) {
+            // Backend returns { success: true, data: [...] }
+            feuillesData = response.data;
+        } else if (Array.isArray(response)) {
+            // Fallback: if response is directly an array
+            feuillesData = response;
+        } else if (response.length !== undefined) {
+            // Another fallback
+            feuillesData = response;
+        }
+
+        // Handle empty data gracefully
+        if (!feuillesData || feuillesData.length === 0) {
+            setFeuilles([]);
+            return; // Don't throw error, just return empty state
+        }
+
+        // Process the data
+        const mergedFeuilles = feuillesData.reduce((acc, feuille) => ({
+            ...feuille,
+            historique: [...acc.historique || [], ...feuille.historique || []]
+        }), {});
+
+        const formattedData = {
+            ...mergedFeuilles,
+            historique: (mergedFeuilles.historique || []).map(p => ({
+                ...p,
+                heures: p.heures?.map(h => h.substring(0, 5)) || ['--:--']
+            }))
         };
+
+        setFeuilles([formattedData]);
+
+    } catch (err) {
+        console.error('Erreur:', err);
+        setError(err.message);
+        setFeuilles([]);
+
+        if (err.message.includes("403")) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Accès refusé',
+                text: 'Vous ne pouvez accéder qu\'à vos propres données'
+            });
+        }
+    } finally {
+        setLoading(false);
+    }
+};
 
         fetchData();
     }, [user?.token, matricule]);

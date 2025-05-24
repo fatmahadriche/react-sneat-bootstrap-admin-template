@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Descriptions, Button, Tag, Spin, message } from 'antd';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getHeuresByUser } from '../../services/heuresSupplementairesService';
+import { CalendarOutlined, ClockCircleOutlined, FieldTimeOutlined, HourglassOutlined } from '@ant-design/icons';
 
 const HeuresSupplementairesDetailPage = () => {
     const { userId } = useParams();
@@ -15,24 +16,44 @@ const HeuresSupplementairesDetailPage = () => {
 
     const columns = [
         {
-            title: 'Date',
+            title: (
+                <span>
+                    <CalendarOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+                    Date
+                </span>
+            ),
             dataIndex: 'date',
             key: 'date',
             render: (date) => new Date(date).toLocaleDateString('fr-FR'),
             sorter: (a, b) => new Date(a.date) - new Date(b.date)
         },
         {
-            title: 'Fin normale',
+            title: (
+                <span>
+                    <FieldTimeOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    Fin normale
+                </span>
+            ),
             dataIndex: 'fin_normale',
             key: 'fin_normale'
         },
         {
-            title: 'Dernier pointage',
+            title: (
+                <span>
+                    <ClockCircleOutlined style={{ color: '#faad14', marginRight: 8 }} />
+                    Dernier pointage
+                </span>
+            ),
             dataIndex: 'dernier_pointage',
             key: 'dernier_pointage'
         },
         {
-            title: 'Durée HS',
+            title: (
+                <span>
+                    <HourglassOutlined style={{ color: '#f5222d', marginRight: 8 }} />
+                    Durée HS
+                </span>
+            ),
             dataIndex: 'duree',
             key: 'duree',
             render: (duree) => <Tag color="orange">{duree}</Tag>
@@ -43,15 +64,12 @@ const HeuresSupplementairesDetailPage = () => {
         const fetchData = async () => {
             try {
                 console.log('Fetching data for user:', userId, 'with filters:', { mois, annee });
-                const result = await getHeuresByUser(userId, {
-                    mois: location.state?.filters?.mois,
-                    annee: location.state?.filters?.annee
-                });
+                const result = await getHeuresByUser(userId, { mois, annee });
 
                 console.log('Data fetched:', result);
 
-                if (result) {
-                    setData(result);
+                if (result && result.length > 0) {
+                    setData(result[0]); // Prendre le premier document du tableau
                 } else {
                     message.warning('Aucune donnée disponible pour cette période');
                     navigate('/heures-supplementaires');
@@ -66,7 +84,7 @@ const HeuresSupplementairesDetailPage = () => {
         };
 
         fetchData();
-    }, [userId, navigate, location.state]);
+    }, [userId, mois, annee, navigate, location.state]);
 
     if (loading) {
         return (
@@ -91,18 +109,6 @@ const HeuresSupplementairesDetailPage = () => {
                 </Button>
             }
         >
-            <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
-                <Descriptions.Item label="Matricule">{data.matricule}</Descriptions.Item>
-                <Descriptions.Item label="Mois/Année">
-                    {data.mois && data.annee
-                        ? `${data.mois}/${data.annee}`
-                        : 'Non spécifié'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Total HS">
-                    <Tag color="red">{data.total_mois || '00h 00m 00s'}</Tag>
-                </Descriptions.Item>
-            </Descriptions>
-
             <Table
                 columns={columns}
                 dataSource={data.details || []}
