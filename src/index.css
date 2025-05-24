@@ -66,3 +66,26 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* Ajouter à la FIN du fichier */
+
+/* Chart tooltip */
+.chartjs-tooltip {
+  background: rgba(73, 80, 87, 0.9) !important;
+  border-radius: 0.25rem;
+  color: #fff;
+  opacity: 1 !important;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Chart legend */
+.chartjs-legend li {
+  display: inline-block;
+  margin-right: 1rem;
+}
+
+/* Responsive des graphiques */
+canvas {
+  max-width: 100%;
+  height: auto !important;
+}

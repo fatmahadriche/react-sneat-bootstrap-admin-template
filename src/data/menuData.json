@@ -166,5 +166,34 @@
         "link": "/logout"
       }
     ]
-  }
+  },
+  {
+  "header": "RAPPORTS ET STATISTIQUES",
+  "roles": ["admin", "gestionnaire", "agent"],
+  "items": [
+    {
+      "text": "Tableaux de bord",
+      "icon": "bx bx-chart",
+      "roles": ["admin", "gestionnaire", "agent"],
+      "available": true,
+      "link": null,
+      "submenu": [
+        {
+          "text": "Rapports des agents",
+          "icon": "bx bx-group",
+          "available": true,
+          "link": "/rapports",
+          "roles": ["admin", "gestionnaire"]
+        },
+        {
+          "text": "Mes rapports",
+          "icon": "bx bx-user",
+          "available": true,
+          "link": "/mes-rapports",
+          "roles": ["agent"]
+        }
+      ]
+    }
+  ]
+}
 ]

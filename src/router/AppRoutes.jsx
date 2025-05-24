@@ -20,6 +20,7 @@ import ListeCongesPage from '../pages/Conges/ListeCongesPage';
 import HeuresSupplementairesPage from '../pages/heures-supplementaires/HeuresSupplementairesPage';
 import HeuresSupplementairesDetailPage from '../pages/heures-supplementaires/HeuresSupplementairesDetailPage';
 
+
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -158,22 +159,23 @@ const AppRoutes = () => {
           }
         />
         <Route
-  path="/heures-supplementaires"
-  element={
-    <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
-      <HeuresSupplementairesPage />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/heures-supplementaires/user/:userId"
-  element={
-    <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
-      <HeuresSupplementairesDetailPage />
-    </ProtectedRoute>
-  }
-/>
-        
+          path="/heures-supplementaires"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
+              <HeuresSupplementairesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/heures-supplementaires/user/:userId"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "gestionnaire"]}>
+              <HeuresSupplementairesDetailPage />
+            </ProtectedRoute>
+          }
+        />
+      
+
 
       </Route>
 
