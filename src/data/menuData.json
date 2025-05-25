@@ -1,11 +1,11 @@
 [
   {
-    "header": "TABLEAU DE BORD",
+    "header": "RAPPORTS ET STATISTIQUES",
     "roles": ["admin", "gestionnaire", "agent"],
     "items": [
       {
-        "text": "Dashboard",
-        "icon": "bx bx-home",
+        "text": "Tableaux de bord",
+        "icon": "bx bx-chart",
         "available": true,
         "link": "/:role/dashboard",
         "roles": ["admin", "gestionnaire", "agent"]
@@ -166,34 +166,6 @@
         "link": "/logout"
       }
     ]
-  },
-  {
-  "header": "RAPPORTS ET STATISTIQUES",
-  "roles": ["admin", "gestionnaire", "agent"],
-  "items": [
-    {
-      "text": "Tableaux de bord",
-      "icon": "bx bx-chart",
-      "roles": ["admin", "gestionnaire", "agent"],
-      "available": true,
-      "link": null,
-      "submenu": [
-        {
-          "text": "Rapports des agents",
-          "icon": "bx bx-group",
-          "available": true,
-          "link": "/rapports",
-          "roles": ["admin", "gestionnaire"]
-        },
-        {
-          "text": "Mes rapports",
-          "icon": "bx bx-user",
-          "available": true,
-          "link": "/mes-rapports",
-          "roles": ["agent"]
-        }
-      ]
-    }
-  ]
-}
+  }
+  
 ]

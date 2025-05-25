@@ -68,24 +68,25 @@ button:focus-visible {
 }
 /* Ajouter à la FIN du fichier */
 
-/* Chart tooltip */
-.chartjs-tooltip {
-  background: rgba(73, 80, 87, 0.9) !important;
-  border-radius: 0.25rem;
-  color: #fff;
-  opacity: 1 !important;
-  padding: 0.5rem 1rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+.dashboard-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-/* Chart legend */
-.chartjs-legend li {
-  display: inline-block;
-  margin-right: 1rem;
+.center-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-/* Responsive des graphiques */
-canvas {
-  max-width: 100%;
-  height: auto !important;
+.ant-card {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.09);
+  border-radius: 8px;
+}
+
+.ant-card-head-title {
+  font-weight: 500;
+  color: #2c3e50;
 }

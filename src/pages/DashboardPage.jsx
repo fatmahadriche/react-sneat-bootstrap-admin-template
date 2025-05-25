@@ -1,367 +1,340 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Line, Pie, Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, registerables } from 'chart.js';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
-import { Select, Spin, Alert } from 'antd';
+import { Card, Row, Col, DatePicker, Spin, Statistic, Alert } from 'antd';
+import { 
+  CheckCircleOutlined, 
+  CloseCircleOutlined, 
+  ClockCircleOutlined,
+  CalendarOutlined
+} from '@ant-design/icons';
 import moment from 'moment';
+import styled from 'styled-components';
+import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 
-ChartJS.register(...registerables);
+const { MonthPicker } = DatePicker;
 
-const { Option } = Select;
+// Styles intégrés avec styled-components
+const DashboardContainer = styled.div`
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
 
-const DashboardPage = () => {
+  .center-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .ant-card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.09);
+    border-radius: 8px;
+    height: 100%;
+
+    .ant-card-head-title {
+      font-weight: 500;
+      color: #2c3e50;
+    }
+
+    .ant-statistic-title {
+      font-size: 14px;
+    }
+  }
+
+  @media (min-width: 992px) {
+    .chart-card {
+      height: 400px;
+      
+      .ant-card-body {
+        height: calc(100% - 56px);
+        display: flex;
+        flex-direction: column;
+        
+        canvas {
+          flex: 1;
+          min-height: 300px;
+        }
+      }
+    }
+
+    // Styles spécifiques pour le graphique d'évolution mensuelle
+    .monthly-evolution-card {
+      height: 500px; // Augmenté de 400px à 500px
+      
+      .ant-card-body {
+        height: calc(100% - 56px);
+        display: flex;
+        flex-direction: column;
+        
+        canvas {
+          flex: 1;
+          min-height: 400px; // Augmenté de 300px à 400px
+        }
+      }
+    }
+  }
+
+  // Pour les écrans mobiles et tablettes
+  @media (max-width: 991px) {
+    .monthly-evolution-card {
+      .ant-card-body {
+        min-height: 350px; // Hauteur minimale pour mobile
+        
+        canvas {
+          min-height: 300px;
+        }
+      }
+    }
+  }
+`;
+
+const DashboardCharts = ({ matricule }) => {
   const { user } = useAuth();
-  const [chartsData, setChartsData] = useState({
-    present: { labels: [], datasets: [] },
-    absent: { labels: [], datasets: [] },
-    leave: { labels: [], datasets: [] },
-    hours: { labels: [], datasets: [] },
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [data, setData] = useState(null);
+  const [period, setPeriod] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [pieData, setPieData] = useState({ labels: [], datasets: [] });
-  const [barData, setBarData] = useState({ labels: [], datasets: [] });
-  const [stats, setStats] = useState({
-    presentDays: 0,
-    absentDays: 0,
-    leaveDays: 0,
-    totalDays: 0,
-    totalOvertimeHours: 0
-  });
-  const [availableMonths, setAvailableMonths] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null); // Pour debugger
 
-  // Générer une liste statique de mois (par exemple, de janvier 2024 à mai 2025)
-  useEffect(() => {
-    const months = [];
-    const startDate = moment('2024-01-01');
-    const endDate = moment('2025-05-31');
-    let currentDate = startDate.clone();
+  const effectiveMatricule = matricule || user?.matricule;
 
-    while (currentDate.isSameOrBefore(endDate)) {
-      months.push({
-        month: currentDate.month() + 1, // 1 à 12
-        year: currentDate.year(),
-        label: currentDate.format('MMMM YYYY'),
-      });
-      currentDate.add(1, 'month');
-    }
-
-    setAvailableMonths(months.reverse()); // Les mois les plus récents en premier
-    if (months.length > 0) {
-      setSelectedMonth(months[0].month);
-      setSelectedYear(months[0].year);
-    }
-  }, []);
-
-  // Récupérer les données des graphiques
-  useEffect(() => {
-    const fetchChartData = async () => {
-      if (!user?.matricule || !selectedMonth || !selectedYear) {
-        setError('Utilisateur non authentifié ou période non sélectionnée');
-        return;
-      }
-
+  const fetchData = async (month, year) => {
+    try {
       setLoading(true);
-      setError(null);
-      try {
-        console.log('Fetching data for:', { matricule: user.matricule, month: selectedMonth, year: selectedYear });
-        
-        const response = await axios.get(
-          `/api/charts/${user.matricule}/charts?month=${selectedMonth}&year=${selectedYear}`,
-          {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          }
-        );
-        
-        console.log('API Response:', response.data);
-        
-        // Safe access to response data with fallbacks
-        const responseData = response.data?.data || {};
-        const responseStats = response.data?.stats || {};
-        
-        // Debug info
-        setDebugInfo({
-          hasData: !!responseData,
-          present: responseData.present || null,
-          absent: responseData.absent || null,
-          leave: responseData.leave || null,
-          hours: responseData.hours || null,
-          stats: responseStats
-        });
-        
-        // ✅ CORRECTION 1: Vérifier si les données existent vraiment
-        const safeChartsData = {
-          present: responseData.present?.datasets?.length > 0 ? responseData.present : { labels: [], datasets: [] },
-          absent: responseData.absent?.datasets?.length > 0 ? responseData.absent : { labels: [], datasets: [] },
-          leave: responseData.leave?.datasets?.length > 0 ? responseData.leave : { labels: [], datasets: [] },
-          hours: responseData.hours?.datasets?.length > 0 ? responseData.hours : { labels: [], datasets: [] },
-        };
-        
-        setChartsData(safeChartsData);
-        
-        setStats({
-          presentDays: responseStats.presentDays || 0,
-          absentDays: responseStats.absentDays || 0,
-          leaveDays: responseStats.leaveDays || 0,
-          totalDays: responseStats.totalDays || 0,
-          totalOvertimeHours: responseStats.totalOvertimeHours || 0
-        });
-
-        // ✅ CORRECTION 2: Créer le pie chart seulement si on a des stats valides
-        if (responseStats.presentDays > 0 || responseStats.absentDays > 0 || responseStats.leaveDays > 0) {
-          setPieData({
-            labels: ['Présent', 'Absent', 'En congé'],
-            datasets: [
-              {
-                data: [
-                  responseStats.presentDays || 0,
-                  responseStats.absentDays || 0,
-                  responseStats.leaveDays || 0,
-                ],
-                backgroundColor: ['#52c41a', '#ff4d4f', '#1890ff'],
-                hoverBackgroundColor: ['#73d13d', '#ff7875', '#40a9ff'],
-              },
-            ],
-          });
-        } else {
-          setPieData({ labels: [], datasets: [] });
-        }
-
-        // ✅ CORRECTION 3: Créer le bar chart seulement si on a des données d'heures
-        const hoursData = responseData.hours;
-        if (hoursData?.datasets?.[0]?.data?.some(val => val > 0)) {
-          setBarData({
-            labels: hoursData.labels || [],
-            datasets: [
-              {
-                label: 'Heures Supplémentaires',
-                data: hoursData.datasets[0].data || [],
-                backgroundColor: '#fa8c16',
-                borderColor: '#fa8c16',
-                borderWidth: 1,
-              },
-            ],
-          });
-        } else {
-          setBarData({ labels: [], datasets: [] });
-        }
-        
-      } catch (err) {
-        console.error('Error fetching chart data:', err);
-        setError(err.response?.data?.error || 'Erreur lors de la récupération des données');
-        
-        // Reset data on error
-        setChartsData({
-          present: { labels: [], datasets: [] },
-          absent: { labels: [], datasets: [] },
-          leave: { labels: [], datasets: [] },
-          hours: { labels: [], datasets: [] },
-        });
-        setPieData({ labels: [], datasets: [] });
-        setBarData({ labels: [], datasets: [] });
-        setStats({
-          presentDays: 0,
-          absentDays: 0,
-          leaveDays: 0,
-          totalDays: 0,
-          totalOvertimeHours: 0
-        });
-        setDebugInfo({ error: err.message });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchChartData();
-  }, [selectedMonth, selectedYear, user?.matricule]);
-
-  const handlePeriodChange = (value) => {
-    const [month, year] = value.split('-').map(Number);
-    setSelectedMonth(month);
-    setSelectedYear(year);
+      setError('');
+      if (!effectiveMatricule) throw new Error('Matricule non disponible');
+      
+      const response = await api.get(`/api/charts/${effectiveMatricule}/charts?month=${month}&year=${year}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err.response?.data?.error || err.message || 'Erreur de chargement');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top' },
-    },
+  useEffect(() => {
+    effectiveMatricule && fetchData(period.split('-')[1], period.split('-')[0]);
+  }, [period, effectiveMatricule]);
+
+  const handlePeriodChange = (date) => {
+    date && setPeriod(`${date.year()}-${String(date.month() + 1).padStart(2, '0')}`);
   };
 
-  const pieOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'right' },
-      title: {
-        display: true,
-        text: `Répartition des Jours - ${moment({ year: selectedYear, month: selectedMonth - 1 }).format('MMMM YYYY')}`,
-      },
-    },
-  };
-
-  const barOptions = {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: {
-        display: true,
-        text: `Heures Supplémentaires par Jour - ${moment({ year: selectedYear, month: selectedMonth - 1 }).format('MMMM YYYY')}`,
-      },
-    },
-    scales: {
-      y: { beginAtZero: true, title: { display: true, text: 'Heures' } },
-      x: { title: { display: true, text: 'Date' } },
-    },
-  };
-
-  // ✅ CORRECTION 4: Fonctions utilitaires pour vérifier les données
-  const hasValidChartData = (chartData) => {
-    return chartData?.datasets?.length > 0 && chartData.datasets[0]?.data?.length > 0;
-  };
-
-  const hasValidPieData = () => {
-    return pieData?.datasets?.length > 0 && pieData.datasets[0]?.data?.some(val => val > 0);
-  };
-
-  const hasValidBarData = () => {
-    return barData?.datasets?.length > 0 && barData.datasets[0]?.data?.some(val => val > 0);
-  };
+  if (loading) return <Spin size="large" className="center-spinner" />;
+  if (error) return <Alert message={error} type="error" showIcon />;
+  if (!data) return <Alert message="Aucune donnée disponible" type="info" showIcon />;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '20px' }}>Tableau de Bord de Présence</h2>
+    <DashboardContainer>
+      <Row gutter={[16, 16]} className="mb-4">
+        <Col span={24}>
+          <Card
+            title="Sélection de la période"
+            extra={
+              <MonthPicker
+                format="MMMM YYYY"
+                value={moment(period)}
+                onChange={handlePeriodChange}
+                allowClear={false}
+              />
+            }
+          />
+        </Col>
+      </Row>
 
-      <div style={{ marginBottom: '20px' }}>
-        <Select
-          style={{ width: 200 }}
-          value={selectedMonth && selectedYear ? `${selectedMonth}-${selectedYear}` : undefined}
-          onChange={handlePeriodChange}
-          placeholder="Sélectionner un mois"
-          disabled={loading || availableMonths.length === 0}
-        >
-          {availableMonths.map(({ month, year, label }) => (
-            <Option key={`${month}-${year}`} value={`${month}-${year}`}>
-              {label}
-            </Option>
-          ))}
-        </Select>
-      </div>
+      <Row gutter={[16, 16]}>
+        {[
+          { title: 'Présents', value: data.stats.presentDays, color: '#52c41a', icon: <CheckCircleOutlined /> },
+          { title: 'Absents', value: data.stats.absentDays, color: '#ff4d4f', icon: <CloseCircleOutlined /> },
+          { title: 'Congés', value: data.stats.leaveDays, color: '#1890ff', icon: <CalendarOutlined /> },
+          { title: 'Heures supp.', value: data.stats.totalOvertimeHours.toFixed(1), color: '#fa8c16', icon: <ClockCircleOutlined />, suffix: 'h' }
+        ].map((stat, i) => (
+          <Col key={i} xs={24} sm={12} md={6}>
+            <Card>
+              <Statistic
+                title={stat.title}
+                value={stat.value}
+                suffix={stat.suffix}
+                prefix={React.cloneElement(stat.icon, { style: { color: stat.color } })}
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
-      {error && (
-        <Alert
-          message="Erreur"
-          description={error}
-          type="error"
-          showIcon
-          style={{ marginBottom: '20px' }}
-        />
-      )}
+      <Row gutter={[16, 16]} className="mt-4">
+        <Col xs={24} md={12} lg={8}>
+          <Card title="Répartition des présences" className="chart-card">
+            <Pie
+              data={{
+                labels: ['Présents', 'Absents', 'Congés'],
+                datasets: [{
+                  data: [data.stats.presentDays, data.stats.absentDays, data.stats.leaveDays],
+                  backgroundColor: ['#52c41a80', '#ff4d4f80', '#1890ff80'],
+                  borderColor: ['#52c41a', '#ff4d4f', '#1890ff'],
+                  borderWidth: 1
+                }]
+              }}
+              options={{
+                plugins: {
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => `${ctx.label}: ${ctx.raw} jours (${((ctx.raw * 100)/data.stats.totalDays).toFixed(1)}%)`
+                    }
+                  }
+                }
+              }}
+            />
+          </Card>
+        </Col>
 
-      {/* Debug info - À supprimer en production */}
-      {debugInfo && (
-        <div style={{ marginBottom: '20px', padding: '10px', background: '#f0f0f0', borderRadius: '4px', fontSize: '12px' }}>
-          <h4>Debug Info:</h4>
-          <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-        </div>
-      )}
+        <Col xs={24} md={12} lg={16}>
+          <Card title="Heures supplémentaires quotidiennes" className="chart-card">
+            <Bar
+              data={{
+                labels: data.data.hours.labels.map(d => d.split('-')[2]),
+                datasets: [{
+                  label: 'Heures',
+                  data: data.data.hours.datasets[0].data,
+                  backgroundColor: '#fa8c1680',
+                  borderColor: '#fa8c16',
+                  borderWidth: 1
+                }]
+              }}
+              options={{
+                scales: {
+                  y: { title: { display: true, text: 'Heures' }, beginAtZero: true },
+                  x: { title: { display: true, text: 'Jour du mois' }, grid: { display: false } }
+                }
+              }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      {loading && (
-        <div style={{ textAlign: 'center', margin: '20px 0' }}>
-          <Spin size="large" />
-        </div>
-      )}
-
-      {!loading && selectedMonth && selectedYear && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '20px',
-          }}
-        >
-          {/* ✅ CORRECTION 5: Conditions simplifiées et debug visuel */}
-          {hasValidChartData(chartsData.present) && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Jours Présents</h4>
-              <Line data={chartsData.present} options={chartOptions} />
-            </div>
-          )}
-          
-          {hasValidChartData(chartsData.absent) && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Jours Absents</h4>
-              <Line data={chartsData.absent} options={chartOptions} />
-            </div>
-          )}
-          
-          {hasValidChartData(chartsData.leave) && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Jours en Congé</h4>
-              <Line data={chartsData.leave} options={chartOptions} />
-            </div>
-          )}
-          
-          {hasValidChartData(chartsData.hours) && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Heures Supplémentaires</h4>
-              <Line data={chartsData.hours} options={chartOptions} />
-            </div>
-          )}
-
-          {hasValidPieData() && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Répartition</h4>
-              <Pie data={pieData} options={pieOptions} />
-            </div>
-          )}
-
-          {hasValidBarData() && (
-            <div style={{ height: '300px', border: '1px solid #d9d9d9', padding: '10px' }}>
-              <h4>Heures Supplémentaires (Bar)</h4>
-              <Bar data={barData} options={barOptions} />
-            </div>
-          )}
-          
-          {/* Message si aucun graphique n'est affiché */}
-          {!hasValidChartData(chartsData.present) && 
-           !hasValidChartData(chartsData.absent) && 
-           !hasValidChartData(chartsData.leave) && 
-           !hasValidChartData(chartsData.hours) && 
-           !hasValidPieData() && 
-           !hasValidBarData() && (
-            <div style={{ 
-              gridColumn: '1 / -1', 
-              textAlign: 'center', 
-              padding: '40px', 
-              background: '#fafafa', 
-              borderRadius: '8px',
-              border: '2px dashed #d9d9d9' 
-            }}>
-              <h3>Aucun graphique à afficher</h3>
-              <p>Les données pour cette période ne sont pas disponibles ou sont vides.</p>
-              <p>Vérifiez que des données existent pour {selectedMonth}/{selectedYear}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {stats?.totalDays > 0 && (
-        <div style={{ marginTop: '20px', padding: '20px', background: '#f5f5f5', borderRadius: '8px' }}>
-          <h3>
-            Statistiques pour {moment({ year: selectedYear, month: selectedMonth - 1 }).format('MMMM YYYY')}
-          </h3>
-          <p><strong>Jours Présents :</strong> {stats.presentDays}</p>
-          <p><strong>Jours Absents :</strong> {stats.absentDays}</p>
-          <p><strong>Jours en Congé :</strong> {stats.leaveDays}</p>
-          <p><strong>Total Heures Supplémentaires :</strong> {stats.totalOvertimeHours?.toFixed(2)} heures</p>
-        </div>
-      )}
-    </div>
+      <Row className="mt-4">
+        <Col span={24}>
+          <Card title="Évolution mensuelle" className="monthly-evolution-card">
+            <Line
+              data={{
+                labels: data.data.present.labels.map(d => d.split('-')[2]),
+                datasets: [
+                  {
+                    label: 'Présents',
+                    data: data.data.present.datasets[0].data,
+                    borderColor: '#52c41a',
+                    backgroundColor: '#52c41a20',
+                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
+                    pointRadius: 2, // Points plus petits
+                    pointHoverRadius: 5, // Points au survol plus modérés
+                    tension: 0.4
+                  },
+                  {
+                    label: 'Absents',
+                    data: data.data.absent.datasets[0].data,
+                    borderColor: '#ff4d4f',
+                    backgroundColor: '#ff4d4f20',
+                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
+                    pointRadius: 2, // Points plus petits
+                    pointHoverRadius: 5, // Points au survol plus modérés
+                    tension: 0.4
+                  },
+                  {
+                    label: 'Congés',
+                    data: data.data.leave.datasets[0].data,
+                    borderColor: '#1890ff',
+                    backgroundColor: '#1890ff20',
+                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
+                    pointRadius: 2, // Points plus petits
+                    pointHoverRadius: 5, // Points au survol plus modérés
+                    tension: 0.4
+                  }
+                ]
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false, // Important pour permettre le redimensionnement
+                interaction: {
+                  intersect: false,
+                  mode: 'index'
+                },
+                plugins: {
+                  legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                      font: {
+                        size: 14, // Police plus grande pour la légende
+                        weight: 'bold'
+                      },
+                      padding: 20,
+                      usePointStyle: true,
+                      pointStyle: 'circle'
+                    }
+                  },
+                  tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                      size: 14,
+                      weight: 'bold'
+                    },
+                    bodyFont: {
+                      size: 13
+                    },
+                    padding: 12
+                  }
+                },
+                scales: {
+                  y: { 
+                    ticks: { 
+                      stepSize: 1,
+                      font: {
+                        size: 12 // Police plus grande pour les axes
+                      }
+                    }, 
+                    title: { 
+                      display: true, 
+                      text: 'Statut',
+                      font: {
+                        size: 14,
+                        weight: 'bold'
+                      }
+                    },
+                    grid: {
+                      color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                  },
+                  x: { 
+                    title: { 
+                      display: true, 
+                      text: 'Jour du mois',
+                      font: {
+                        size: 14,
+                        weight: 'bold'
+                      }
+                    }, 
+                    grid: { 
+                      display: false 
+                    },
+                    ticks: {
+                      font: {
+                        size: 12 // Police plus grande pour les axes
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </Card>
+        </Col>
+      </Row>
+    </DashboardContainer>
   );
 };
 
-export default DashboardPage;
+export default DashboardCharts;
