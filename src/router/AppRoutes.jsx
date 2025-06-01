@@ -44,6 +44,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        
 
         {/* Configuration du compte */}
         <Route

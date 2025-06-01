@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Line, Pie, Bar } from 'react-chartjs-2';
-import { Card, Row, Col, DatePicker, Spin, Statistic, Alert } from 'antd';
+import { Card, Row, Col, DatePicker, Spin, Statistic, Alert, Typography } from 'antd';
 import { 
   CheckCircleOutlined, 
   CloseCircleOutlined, 
   ClockCircleOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  UserOutlined,
+  ClearOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import styled from 'styled-components';
@@ -13,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 
 const { MonthPicker } = DatePicker;
+const { Text } = Typography;
 
 // Styles intégrés avec styled-components
 const DashboardContainer = styled.div`
@@ -25,6 +28,69 @@ const DashboardContainer = styled.div`
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+  }
+
+  .agent-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #2c3e50;
+    font-weight: 500;
+    margin-bottom: 8px; /* Réduit de 16px à 8px pour moins d'espace */
+    padding: 8px 0; /* Réduit le padding vertical de 12px à 8px */
+    
+    .anticon {
+      color: #1890ff;
+    }
+  }
+
+  .period-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+  }
+
+  .filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    .clear-filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #1890ff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      background: rgba(24, 144, 255, 0.05);
+      border: 1px solid rgba(24, 144, 255, 0.2);
+      
+      &:hover {
+        background: rgba(24, 144, 255, 0.1);
+        border-color: rgba(24, 144, 255, 0.3);
+        color: #0050b3;
+      }
+      
+      .anticon {
+        font-size: 12px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      width: 100%;
+      justify-content: space-between;
+    }
   }
 
   .ant-card {
@@ -58,9 +124,8 @@ const DashboardContainer = styled.div`
       }
     }
 
-    // Styles spécifiques pour le graphique d'évolution mensuelle
     .monthly-evolution-card {
-      height: 500px; // Augmenté de 400px à 500px
+      height: 500px;
       
       .ant-card-body {
         height: calc(100% - 56px);
@@ -69,17 +134,16 @@ const DashboardContainer = styled.div`
         
         canvas {
           flex: 1;
-          min-height: 400px; // Augmenté de 300px à 400px
+          min-height: 400px;
         }
       }
     }
   }
 
-  // Pour les écrans mobiles et tablettes
   @media (max-width: 991px) {
     .monthly-evolution-card {
       .ant-card-body {
-        min-height: 350px; // Hauteur minimale pour mobile
+        min-height: 350px;
         
         canvas {
           min-height: 300px;
@@ -94,6 +158,7 @@ const DashboardCharts = ({ matricule }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  const [agentInfo, setAgentInfo] = useState(null);
   const [period, setPeriod] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -109,6 +174,10 @@ const DashboardCharts = ({ matricule }) => {
       
       const response = await api.get(`/api/charts/${effectiveMatricule}/charts?month=${month}&year=${year}`);
       setData(response.data);
+      
+      if (response.data.agentInfo) {
+        setAgentInfo(response.data.agentInfo);
+      }
     } catch (err) {
       console.error('Error:', err);
       setError(err.response?.data?.error || err.message || 'Erreur de chargement');
@@ -117,12 +186,38 @@ const DashboardCharts = ({ matricule }) => {
     }
   };
 
+  const fetchAgentInfo = async () => {
+    try {
+      if (!effectiveMatricule) return;
+      
+      const response = await api.get(`/api/agents/${effectiveMatricule}`);
+      setAgentInfo(response.data);
+    } catch (err) {
+      console.error('Error fetching agent info:', err);
+      if (user && user.matricule === effectiveMatricule) {
+        setAgentInfo({
+          nom: user.nom,
+          prenom: user.prenom,
+          matricule: user.matricule
+        });
+      }
+    }
+  };
+
   useEffect(() => {
-    effectiveMatricule && fetchData(period.split('-')[1], period.split('-')[0]);
+    if (effectiveMatricule) {
+      fetchAgentInfo();
+      fetchData(period.split('-')[1], period.split('-')[0]);
+    }
   }, [period, effectiveMatricule]);
 
   const handlePeriodChange = (date) => {
     date && setPeriod(`${date.year()}-${String(date.month() + 1).padStart(2, '0')}`);
+  };
+
+  const resetToCurrentMonth = () => {
+    const d = new Date();
+    setPeriod(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   };
 
   if (loading) return <Spin size="large" className="center-spinner" />;
@@ -131,19 +226,40 @@ const DashboardCharts = ({ matricule }) => {
 
   return (
     <DashboardContainer>
-      <Row gutter={[16, 16]} className="mb-4">
+      <Row gutter={[16, 8]} className="mb-4"> {/* Réduit le gutter vertical de 16 à 8 */}
         <Col span={24}>
-          <Card
-            title="Sélection de la période"
-            extra={
-              <MonthPicker
-                format="MMMM YYYY"
-                value={moment(period)}
-                onChange={handlePeriodChange}
-                allowClear={false}
-              />
-            }
-          />
+          <div className="agent-info">
+            <UserOutlined />
+            <Text strong>
+              {agentInfo ? 
+                `${agentInfo.prenom} ${agentInfo.nom} (${agentInfo.matricule || effectiveMatricule})`
+                : 
+                `Agent ${effectiveMatricule}`
+              }
+            </Text>
+          </div>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 8]} className="mb-4"> {/* Réduit le gutter vertical de 16 à 8 */}
+        <Col span={24}>
+          <Card title="Sélection de la période" bodyStyle={{ padding: '16px' }}> {/* Réduit le padding interne */}
+            <div className="period-selector">
+              <Text>Choisissez la période à analyser :</Text>
+              <div className="filter-controls">
+                <MonthPicker
+                  format="MMMM YYYY"
+                  value={moment(period)}
+                  onChange={handlePeriodChange}
+                  allowClear={false}
+                />
+                <div className="clear-filter-btn" onClick={resetToCurrentMonth}>
+                  <ClearOutlined />
+                  <span>Mois actuel</span>
+                </div>
+              </div>
+            </div>
+          </Card>
         </Col>
       </Row>
 
@@ -229,9 +345,9 @@ const DashboardCharts = ({ matricule }) => {
                     data: data.data.present.datasets[0].data,
                     borderColor: '#52c41a',
                     backgroundColor: '#52c41a20',
-                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
-                    pointRadius: 2, // Points plus petits
-                    pointHoverRadius: 5, // Points au survol plus modérés
+                    borderWidth: 3,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
                     tension: 0.4
                   },
                   {
@@ -239,9 +355,9 @@ const DashboardCharts = ({ matricule }) => {
                     data: data.data.absent.datasets[0].data,
                     borderColor: '#ff4d4f',
                     backgroundColor: '#ff4d4f20',
-                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
-                    pointRadius: 2, // Points plus petits
-                    pointHoverRadius: 5, // Points au survol plus modérés
+                    borderWidth: 3,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
                     tension: 0.4
                   },
                   {
@@ -249,16 +365,16 @@ const DashboardCharts = ({ matricule }) => {
                     data: data.data.leave.datasets[0].data,
                     borderColor: '#1890ff',
                     backgroundColor: '#1890ff20',
-                    borderWidth: 3, // Ligne plus épaisse pour plus de clarté
-                    pointRadius: 2, // Points plus petits
-                    pointHoverRadius: 5, // Points au survol plus modérés
+                    borderWidth: 3,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
                     tension: 0.4
                   }
                 ]
               }}
               options={{
                 responsive: true,
-                maintainAspectRatio: false, // Important pour permettre le redimensionnement
+                maintainAspectRatio: false,
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -269,7 +385,7 @@ const DashboardCharts = ({ matricule }) => {
                     position: 'top',
                     labels: {
                       font: {
-                        size: 14, // Police plus grande pour la légende
+                        size: 14,
                         weight: 'bold'
                       },
                       padding: 20,
@@ -294,7 +410,7 @@ const DashboardCharts = ({ matricule }) => {
                     ticks: { 
                       stepSize: 1,
                       font: {
-                        size: 12 // Police plus grande pour les axes
+                        size: 12
                       }
                     }, 
                     title: { 
@@ -323,7 +439,7 @@ const DashboardCharts = ({ matricule }) => {
                     },
                     ticks: {
                       font: {
-                        size: 12 // Police plus grande pour les axes
+                        size: 12
                       }
                     }
                   }
