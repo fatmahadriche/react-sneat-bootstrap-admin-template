@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Line, Pie, Bar } from 'react-chartjs-2';
-import { Card, Row, Col, DatePicker, Spin, Statistic, Alert, Typography } from 'antd';
+import { Card, Row, Col, Select, Spin, Statistic, Alert, Typography, Input, Button } from 'antd';
 import { 
   CheckCircleOutlined, 
   CloseCircleOutlined, 
   ClockCircleOutlined,
   CalendarOutlined,
   UserOutlined,
-  ClearOutlined
+  ClearOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
-import moment from 'moment';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/api';
 
-const { MonthPicker } = DatePicker;
+const { Option } = Select;
 const { Text } = Typography;
 
-// Styles intégrés avec styled-components
+// Styles optimisés
 const DashboardContainer = styled.div`
   padding: 20px;
   max-width: 1400px;
@@ -30,17 +30,28 @@ const DashboardContainer = styled.div`
     transform: translate(-50%, -50%);
   }
 
+  .agent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border-left: 4px solid #1890ff;
+  }
+
   .agent-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #2c3e50;
+    font-size: 18px;
     font-weight: 500;
-    margin-bottom: 8px; /* Réduit de 16px à 8px pour moins d'espace */
-    padding: 8px 0; /* Réduit le padding vertical de 12px à 8px */
+    color: #2c3e50;
     
     .anticon {
       color: #1890ff;
+      font-size: 20px;
     }
   }
 
@@ -49,6 +60,7 @@ const DashboardContainer = styled.div`
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    padding: 12px 0;
     
     @media (max-width: 768px) {
       flex-direction: column;
@@ -81,74 +93,73 @@ const DashboardContainer = styled.div`
         border-color: rgba(24, 144, 255, 0.3);
         color: #0050b3;
       }
-      
-      .anticon {
-        font-size: 12px;
-      }
     }
-    
-    @media (max-width: 768px) {
-      width: 100%;
-      justify-content: space-between;
+
+    .ant-select {
+      width: 100px;
     }
   }
 
-  .ant-card {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.09);
-    border-radius: 8px;
-    height: 100%;
-
-    .ant-card-head-title {
-      font-weight: 500;
-      color: #2c3e50;
+  .stats-row {
+    margin: 16px 0;
+    
+    .ant-card {
+      height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+      
+      &:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      }
+      
+      .ant-card-body {
+        padding: 16px;
+      }
     }
+  }
 
-    .ant-statistic-title {
-      font-size: 14px;
+  .chart-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    
+    .ant-card-head {
+      background: #f9fafb;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    
+    .ant-card-body {
+      height: calc(100% - 56px);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      
+      > div {
+        flex: 1;
+        padding: 16px;
+      }
+    }
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    
+    .ant-input {
+      flex: 1;
     }
   }
 
   @media (min-width: 992px) {
     .chart-card {
-      height: 400px;
-      
-      .ant-card-body {
-        height: calc(100% - 56px);
-        display: flex;
-        flex-direction: column;
-        
-        canvas {
-          flex: 1;
-          min-height: 300px;
-        }
-      }
+      height: 380px;
     }
 
     .monthly-evolution-card {
-      height: 500px;
-      
-      .ant-card-body {
-        height: calc(100% - 56px);
-        display: flex;
-        flex-direction: column;
-        
-        canvas {
-          flex: 1;
-          min-height: 400px;
-        }
-      }
-    }
-  }
-
-  @media (max-width: 991px) {
-    .monthly-evolution-card {
-      .ant-card-body {
-        min-height: 350px;
-        
-        canvas {
-          min-height: 300px;
-        }
-      }
+      height: 450px;
     }
   }
 `;
@@ -161,20 +172,74 @@ const DashboardCharts = ({ matricule }) => {
   const [agentInfo, setAgentInfo] = useState(null);
   const [period, setPeriod] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return {
+      day: d.getDate(),
+      month: d.getMonth() + 1,
+      year: d.getFullYear()
+    };
   });
 
-  const effectiveMatricule = matricule || user?.matricule;
+  const [searchValue, setSearchValue] = useState('');
+  const [searchedAgent, setSearchedAgent] = useState(null);
+  const [searchError, setSearchError] = useState('');
 
-  const fetchData = async (month, year) => {
+  const effectiveMatricule = searchedAgent?.matricule || matricule || user?.matricule;
+
+  // Generate options for days, months, and years
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const months = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
+
+  const handleAgentSearch = async () => {
+    setSearchError('');
+    setLoading(true);
+    try {
+      const response = await api.get(`/api/charts/search/agents?q=${encodeURIComponent(searchValue)}&year=${period.year}&month=${period.month}&day=${period.day}`);
+      if (response.data.results && response.data.results.length > 0) {
+        const agent = response.data.results[0];
+        if (agent.error) {
+          setSearchError(agent.error);
+          setSearchedAgent(null);
+        } else {
+          setSearchedAgent({
+            matricule: agent.matricule,
+            nom: agent.nom,
+            prenom: agent.prenom
+          });
+          await fetchData(period.day, period.month, period.year, agent.matricule);
+          setAgentInfo({ nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule });
+        }
+      } else {
+        setSearchError('Aucun agent trouvé');
+        setSearchedAgent(null);
+      }
+    } catch (err) {
+      setSearchError(err.response?.data?.error || err.message || 'Erreur de recherche');
+      setSearchedAgent(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToOwnDashboard = () => {
+    setSearchedAgent(null);
+    setAgentInfo(null);
+    setSearchError('');
+    setSearchValue('');
+    fetchData(period.day, period.month, period.year, user?.matricule);
+  };
+
+  const fetchData = async (day, month, year, customMatricule) => {
     try {
       setLoading(true);
       setError('');
-      if (!effectiveMatricule) throw new Error('Matricule non disponible');
-      
-      const response = await api.get(`/api/charts/${effectiveMatricule}/charts?month=${month}&year=${year}`);
+      const mat = customMatricule || effectiveMatricule;
+      if (!mat) throw new Error('Matricule non disponible');
+      const response = await api.get(`/api/charts/${mat}/charts?day=${day}&month=${month}&year=${year}`);
       setData(response.data);
-      
       if (response.data.agentInfo) {
         setAgentInfo(response.data.agentInfo);
       }
@@ -190,7 +255,7 @@ const DashboardCharts = ({ matricule }) => {
     try {
       if (!effectiveMatricule) return;
       
-      const response = await api.get(`/api/agents/${effectiveMatricule}`);
+      const response = await api.get(`/api/charts/${effectiveMatricule}`);
       setAgentInfo(response.data);
     } catch (err) {
       console.error('Error fetching agent info:', err);
@@ -207,17 +272,21 @@ const DashboardCharts = ({ matricule }) => {
   useEffect(() => {
     if (effectiveMatricule) {
       fetchAgentInfo();
-      fetchData(period.split('-')[1], period.split('-')[0]);
+      fetchData(period.day, period.month, period.year);
     }
   }, [period, effectiveMatricule]);
 
-  const handlePeriodChange = (date) => {
-    date && setPeriod(`${date.year()}-${String(date.month() + 1).padStart(2, '0')}`);
+  const handlePeriodChange = (field, value) => {
+    setPeriod(prev => ({ ...prev, [field]: value }));
   };
 
-  const resetToCurrentMonth = () => {
+  const resetToCurrentDate = () => {
     const d = new Date();
-    setPeriod(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    setPeriod({
+      day: d.getDate(),
+      month: d.getMonth() + 1,
+      year: d.getFullYear()
+    });
   };
 
   if (loading) return <Spin size="large" className="center-spinner" />;
@@ -226,44 +295,80 @@ const DashboardCharts = ({ matricule }) => {
 
   return (
     <DashboardContainer>
-      <Row gutter={[16, 8]} className="mb-4"> {/* Réduit le gutter vertical de 16 à 8 */}
-        <Col span={24}>
-          <div className="agent-info">
-            <UserOutlined />
-            <Text strong>
-              {agentInfo ? 
-                `${agentInfo.prenom} ${agentInfo.nom} (${agentInfo.matricule || effectiveMatricule})`
-                : 
-                `Agent ${effectiveMatricule}`
-              }
-            </Text>
+      {(user?.role === 'ADMIN' || user?.role === 'GESTIONNAIRE') && (
+        <div className="search-bar">
+          <Input
+            placeholder="Matricule, nom ou prénom"
+            value={searchValue}
+            onChange={e => setSearchValue(e.target.value)}
+            onPressEnter={handleAgentSearch}
+            prefix={<SearchOutlined />}
+          />
+          <Button type="primary" onClick={handleAgentSearch} icon={<SearchOutlined />}>
+            Rechercher
+          </Button>
+          {searchedAgent && (
+            <Button onClick={handleBackToOwnDashboard}>
+              Retour à mon dashboard
+            </Button>
+          )}
+        </div>
+      )}
+      {searchError && <Alert message={searchError} type="error" showIcon style={{ marginBottom: 16 }} />}
+
+      <div className="agent-header">
+        <div className="agent-info">
+          <UserOutlined />
+          <Text strong>
+            {agentInfo ? 
+              `${agentInfo.prenom} ${agentInfo.nom} (${agentInfo.matricule || effectiveMatricule})`
+              : 
+              `Agent ${effectiveMatricule}`
+            }
+          </Text>
+        </div>
+        <div className="filter-controls">
+          <div className="clear-filter-btn" onClick={resetToCurrentDate}>
+            <ClearOutlined />
+            <span>Aujourd'hui</span>
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      <Row gutter={[16, 8]} className="mb-4"> {/* Réduit le gutter vertical de 16 à 8 */}
-        <Col span={24}>
-          <Card title="Sélection de la période" bodyStyle={{ padding: '16px' }}> {/* Réduit le padding interne */}
-            <div className="period-selector">
-              <Text>Choisissez la période à analyser :</Text>
-              <div className="filter-controls">
-                <MonthPicker
-                  format="MMMM YYYY"
-                  value={moment(period)}
-                  onChange={handlePeriodChange}
-                  allowClear={false}
-                />
-                <div className="clear-filter-btn" onClick={resetToCurrentMonth}>
-                  <ClearOutlined />
-                  <span>Mois actuel</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+      <Card>
+        <div className="period-selector">
+          <Text strong>Sélection de la période :</Text>
+          <div className="filter-controls">
+            <Select
+              value={period.day}
+              onChange={value => handlePeriodChange('day', value)}
+              suffixIcon={<CalendarOutlined />}
+            >
+              {days.map(day => (
+                <Option key={day} value={day}>{day}</Option>
+              ))}
+            </Select>
+            <Select
+              value={period.month}
+              onChange={value => handlePeriodChange('month', value)}
+            >
+              {months.map((month, index) => (
+                <Option key={index + 1} value={index + 1}>{month}</Option>
+              ))}
+            </Select>
+            <Select
+              value={period.year}
+              onChange={value => handlePeriodChange('year', value)}
+            >
+              {years.map(year => (
+                <Option key={year} value={year}>{year}</Option>
+              ))}
+            </Select>
+          </div>
+        </div>
+      </Card>
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="stats-row">
         {[
           { title: 'Présents', value: data.stats.presentDays, color: '#52c41a', icon: <CheckCircleOutlined /> },
           { title: 'Absents', value: data.stats.absentDays, color: '#ff4d4f', icon: <CloseCircleOutlined /> },
@@ -276,14 +381,15 @@ const DashboardCharts = ({ matricule }) => {
                 title={stat.title}
                 value={stat.value}
                 suffix={stat.suffix}
-                prefix={React.cloneElement(stat.icon, { style: { color: stat.color } })}
+                prefix={React.cloneElement(stat.icon, { style: { color: stat.color, fontSize: 24 } })}
+                valueStyle={{ color: stat.color, fontSize: 22 }}
               />
             </Card>
           </Col>
         ))}
       </Row>
 
-      <Row gutter={[16, 16]} className="mt-4">
+      <Row gutter={[16, 16]}>
         <Col xs={24} md={12} lg={8}>
           <Card title="Répartition des présences" className="chart-card">
             <Pie
@@ -298,6 +404,7 @@ const DashboardCharts = ({ matricule }) => {
               }}
               options={{
                 plugins: {
+                  legend: { position: 'bottom' },
                   tooltip: {
                     callbacks: {
                       label: (ctx) => `${ctx.label}: ${ctx.raw} jours (${((ctx.raw * 100)/data.stats.totalDays).toFixed(1)}%)`
@@ -324,8 +431,14 @@ const DashboardCharts = ({ matricule }) => {
               }}
               options={{
                 scales: {
-                  y: { title: { display: true, text: 'Heures' }, beginAtZero: true },
-                  x: { title: { display: true, text: 'Jour du mois' }, grid: { display: false } }
+                  y: { 
+                    title: { display: true, text: 'Heures' }, 
+                    beginAtZero: true 
+                  },
+                  x: { 
+                    title: { display: true, text: 'Jour du mois' }, 
+                    grid: { display: false } 
+                  }
                 }
               }}
             />
@@ -333,9 +446,9 @@ const DashboardCharts = ({ matricule }) => {
         </Col>
       </Row>
 
-      <Row className="mt-4">
+      <Row>
         <Col span={24}>
-          <Card title="Évolution mensuelle" className="monthly-evolution-card">
+          <Card title="Évolution mensuelle" className="chart-card monthly-evolution-card">
             <Line
               data={{
                 labels: data.data.present.labels.map(d => d.split('-')[2]),
@@ -375,73 +488,25 @@ const DashboardCharts = ({ matricule }) => {
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                  intersect: false,
-                  mode: 'index'
-                },
                 plugins: {
                   legend: {
                     display: true,
                     position: 'top',
                     labels: {
-                      font: {
-                        size: 14,
-                        weight: 'bold'
-                      },
+                      font: { size: 14, weight: 'bold' },
                       padding: 20,
-                      usePointStyle: true,
-                      pointStyle: 'circle'
+                      usePointStyle: true
                     }
-                  },
-                  tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleFont: {
-                      size: 14,
-                      weight: 'bold'
-                    },
-                    bodyFont: {
-                      size: 13
-                    },
-                    padding: 12
                   }
                 },
                 scales: {
                   y: { 
-                    ticks: { 
-                      stepSize: 1,
-                      font: {
-                        size: 12
-                      }
-                    }, 
-                    title: { 
-                      display: true, 
-                      text: 'Statut',
-                      font: {
-                        size: 14,
-                        weight: 'bold'
-                      }
-                    },
-                    grid: {
-                      color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    title: { display: true, text: 'Jours', font: { size: 14, weight: 'bold' } },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
                   },
                   x: { 
-                    title: { 
-                      display: true, 
-                      text: 'Jour du mois',
-                      font: {
-                        size: 14,
-                        weight: 'bold'
-                      }
-                    }, 
-                    grid: { 
-                      display: false 
-                    },
-                    ticks: {
-                      font: {
-                        size: 12
-                      }
-                    }
+                    title: { display: true, text: 'Jour du mois', font: { size: 14, weight: 'bold' } }, 
+                    grid: { display: false } 
                   }
                 }
               }}

@@ -10,6 +10,7 @@
         "link": "/:role/dashboard",
         "roles": ["admin", "gestionnaire", "agent"]
       }
+      
     ]
   },
   {

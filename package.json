@@ -28,6 +28,7 @@
     "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "localforage": "^1.10.0",
+    "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "match-sorter": "^6.3.1",

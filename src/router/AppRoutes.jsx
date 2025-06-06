@@ -45,6 +45,7 @@ const AppRoutes = () => {
           }
         />
         
+        
 
         {/* Configuration du compte */}
         <Route
